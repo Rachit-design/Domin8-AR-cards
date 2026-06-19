@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Domin8 — League of Rising Stars</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    .overlay {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: #fff; padding: 24px;
+      text-align: center; background: #0a0a0a; z-index: 100;
+    }
+
+    #landing .brand { margin-bottom: 32px; }
+    #landing .brand img { width: 64px; border-radius: 12px; }
+    #landing h1 { font-size: 22px; margin-bottom: 6px; color: #EF438B; letter-spacing: 2px; text-transform: uppercase; }
+    #landing h2 { font-size: 14px; color: #CE006D; font-style: italic; letter-spacing: 1px; margin-bottom: 24px; }
+    #landing p { font-size: 14px; line-height: 1.6; color: #999; max-width: 300px; }
+
+    #loader .spinner {
+      width: 36px; height: 36px; border: 3px solid rgba(239,67,139,0.15);
+      border-top-color: #EF438B; border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin-bottom: 16px;
+    }
+    #loader p { font-size: 14px; color: #aaa; }
+
+    #error h1 { color: #EF438B; font-size: 20px; margin-bottom: 12px; }
+    #error p { font-size: 14px; color: #999; max-width: 300px; }
+
+    #scan-hint {
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.8); color: #fff; padding: 12px 24px; border-radius: 24px;
+      font-size: 14px; z-index: 50; backdrop-filter: blur(12px);
+      border: 1px solid rgba(239,67,139,0.3); display: none;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+  </style>
+</head>
+<body>
+
+<!-- LANDING — shown when no player param in URL -->
+<div id="landing" class="overlay" style="display:none;">
+  <div class="brand">
+    <div style="width:64px; height:64px; border-radius:12px; background: linear-gradient(135deg, #1A2193, #CE006D);
+      display:flex; align-items:center; justify-content:center; font-weight:800; font-size:22px; color:#fff; margin:0 auto;">D8</div>
+  </div>
+  <h1>League of Rising Stars</h1>
+  <h2>Ascension</h2>
+  <p>Scan the QR code on the back of a Domin8 gamer card to activate the AR experience.</p>
+</div>
+
+<!-- LOADER — shown while AR boots -->
+<div id="loader" class="overlay">
+  <div class="spinner"></div>
+  <p>Initializing camera…</p>
+</div>
+
+<!-- ERROR -->
+<div id="error" class="overlay" style="display:none;">
+  <h1>Card not found</h1>
+  <p id="error-msg"></p>
+</div>
+
+<!-- SCAN HINT — shown when AR is ready but card not yet detected -->
+<div id="scan-hint">Point your camera at the card front</div>
+
+<!-- AR SCENE injected here -->
+<div id="ar-root"></div>
+
+<script>
+  // ============================================================
+  // PLAYER REGISTRY
+  // Each entry: key (URL param), targetIndex (position in targets.mind), video filename, display name
+  // targetIndex MUST match the order images were uploaded to the MindAR compiler
+  // ============================================================
+  const PLAYERS = {
+    "mamanotjoe":  { targetIndex: 0, video: "mamanotjoe.mp4",  name: "MAMANOTJOE" },
+  };
+
+  // ============================================================
+  // VIDEO POSITIONING — tuned to your Figma card layout
+  //
+  // Your card:  750 x 1050 (Figma units)
+  // Photo area: ~680 x 740, starting at roughly (35, 5)
+  // Name plate: starts at y ≈ 745, stays as printed card
+  //
+  // MindAR normalizes the target image so height = 1.
+  // All positions are relative to the card CENTER at (0, 0, 0).
+  //
+  // TO FINE-TUNE: adjust these 3 values. Open on your phone,
+  // point at the card, and tweak until the video sits perfectly
+  // over the photo area without covering the name plate.
+  // ============================================================
+  const VIDEO_WIDTH  = 0.648;  // 680 / 1050 = photo width relative to card height
+  const VIDEO_HEIGHT = 0.705;  // 740 / 1050 = photo height relative to card height
+  const VIDEO_Y      = 0.148;  // vertical offset upward from card center to photo center
+
+  // ============================================================
+  // BOOT
+  // ============================================================
+  const params = new URLSearchParams(window.location.search);
+  const playerKey = params.get("p");
+
+  const $loader  = document.getElementById("loader");
+  const $error   = document.getElementById("error");
+  const $errMsg  = document.getElementById("error-msg");
+  const $landing = document.getElementById("landing");
+  const $hint    = document.getElementById("scan-hint");
+
+  if (!playerKey) {
+    $loader.style.display = "none";
+    $landing.style.display = "flex";
+  } else if (!PLAYERS[playerKey]) {
+    $loader.style.display = "none";
+    $error.style.display = "flex";
+    $errMsg.textContent = `No player registered for code "${playerKey}". Check the QR link.`;
+  } else {
+    buildScene(PLAYERS[playerKey]);
+  }
+
+  function buildScene(player) {
+    const root = document.getElementById("ar-root");
+    root.innerHTML = `
+      <a-scene
+        mindar-image="imageTargetSrc: ./targets/targets.mind; autoStart: true; uiScanning: no; uiLoading: no; uiError: no;"
+        color-space="sRGB"
+        renderer="colorManagement: true, physicallyCorrectLights"
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false">
+
+        <a-assets>
+          <video id="cardVideo"
+                 src="./videos/${player.video}"
+                 preload="auto" loop muted playsinline webkit-playsinline
+                 crossorigin="anonymous"></video>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: ${player.targetIndex}">
+          <a-video
+            src="#cardVideo"
+            position="0 ${VIDEO_Y} 0"
+            width="${VIDEO_WIDTH}"
+            height="${VIDEO_HEIGHT}"
+            rotation="0 0 0">
+          </a-video>
+        </a-entity>
+
+      </a-scene>
+    `;
+
+    const scene = document.querySelector("a-scene");
+
+    scene.addEventListener("loaded", () => {
+      $loader.style.display = "none";
+      $hint.style.display = "block";
+
+      const video  = document.querySelector("#cardVideo");
+      const target = document.querySelector("[mindar-image-target]");
+
+      target.addEventListener("targetFound", () => {
+        $hint.style.display = "none";
+        video.play().catch(() => {});
+      });
+
+      target.addEventListener("targetLost", () => {
+        $hint.style.display = "block";
+        video.pause();
+      });
+    });
+
+    scene.addEventListener("arError", () => {
+      $loader.style.display = "none";
+      $error.style.display = "flex";
+      $errMsg.textContent = "Camera failed to start. Make sure you granted camera permission and reload the page.";
+    });
+  }
+</script>
+</body>
+</html>

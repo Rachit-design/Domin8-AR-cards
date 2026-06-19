@@ -1,0 +1,27 @@
+{
+  "name": "domin8-ar-cards",
+  "version": "1.0.0",
+  "description": "Physical gamer cards that come alive. Scan QR on card back → camera opens → point at card front → the photo area animates with a video while the name plate stays as printed.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rachit-design/Domin8-AR-cards.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Rachit-design/Domin8-AR-cards/issues"
+  },
+  "homepage": "https://github.com/Rachit-design/Domin8-AR-cards#readme",
+  "dependencies": {
+    "mind-ar": "^1.2.5"
+  },
+  "overrides": {
+    "canvas": "^3.2.3"
+  }
+}

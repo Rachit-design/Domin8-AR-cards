@@ -1,0 +1,7 @@
+{
+  "_comment": "Edit this, then run: python3 scripts/generate.py",
+  "_baseUrl": "https://rachit-design.github.io/Domin8-AR-cards/",
+  "players": [
+    { "key": "mamanotjoe", "name": "MAMANOTJOE", "video": "mamanotjoe.mp4" }
+  ]
+}
