@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>AR Debug — Domin8</title>
+<script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:transparent; color:#fff; font-family:-apple-system, BlinkMacSystemFont, sans-serif; }
+  html { background:#0a0a0a; }
+  #log {
+    position:fixed; top:0; left:0; right:0; max-height:55vh; overflow-y:auto;
+    background:rgba(0,0,0,0.85); padding:10px 12px; z-index:9999;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size:11px;
+  }
+  .row { padding:3px 0; border-bottom:1px solid #1f1f1f; word-break: break-all; }
+  .ok { color:#4ade80; }
+  .bad { color:#ef4444; }
+  .info { color:#94a3b8; }
+  .warn { color:#facc15; }
+  #start {
+    position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:#0a0a0a; z-index:8000;
+  }
+  #start button {
+    padding:16px 32px; font-size:14px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+    border:none; border-radius:32px; background:#EF438B; color:#fff; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="log"></div>
+
+<div id="start">
+  <button id="go">Start AR debug</button>
+</div>
+
+<div id="ar-root"></div>
+
+<script>
+const $log = document.getElementById('log');
+function log(msg, kind='info'){
+  const row = document.createElement('div');
+  row.className = 'row ' + kind;
+  row.textContent = msg;
+  $log.appendChild(row);
+  $log.scrollTop = $log.scrollHeight;
+  console.log(msg);
+}
+
+log('Page loaded.', 'ok');
+log('A-Frame: ' + (window.AFRAME ? AFRAME.version : 'MISSING'), window.AFRAME ? 'ok' : 'bad');
+log('mind-ar components: ' + (window.AFRAME && AFRAME.components['mindar-image'] ? 'registered' : 'MISSING'),
+    (window.AFRAME && AFRAME.components['mindar-image']) ? 'ok' : 'bad');
+
+document.getElementById('go').addEventListener('click', () => {
+  document.getElementById('start').style.display = 'none';
+  log('Building scene...', 'info');
+
+  document.getElementById('ar-root').innerHTML = `
+    <a-scene
+      mindar-image="imageTargetSrc: ./targets/targets.mind; autoStart: true; uiScanning: no; uiLoading: no; uiError: no;"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights, alpha: true"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-box position="0 0 0.1" scale="0.5 0.5 0.5" color="#EF438B"></a-box>
+      </a-entity>
+    </a-scene>
+  `;
+
+  const scene = document.querySelector('a-scene');
+  log('Scene element created: ' + !!scene, scene ? 'ok' : 'bad');
+
+  scene.addEventListener('loaded', () => {
+    log('SCENE LOADED event fired.', 'ok');
+    setTimeout(() => snapshot('after loaded +500ms'), 500);
+    setTimeout(() => snapshot('after loaded +2s'), 2000);
+  });
+
+  scene.addEventListener('renderstart', () => log('renderstart event.', 'ok'));
+  scene.addEventListener('arReady', () => log('arReady event.', 'ok'));
+  scene.addEventListener('arError', (e) => log('arError: ' + JSON.stringify(e.detail || {}), 'bad'));
+
+  const target = scene.querySelector('[mindar-image-target]');
+  if (target) {
+    target.addEventListener('targetFound', () => log('TARGET FOUND.', 'ok'));
+    target.addEventListener('targetLost', () => log('Target lost.', 'warn'));
+  }
+
+  window.addEventListener('error', (e) => log('JS error: ' + e.message + ' @ ' + e.lineno, 'bad'));
+});
+
+function snapshot(label){
+  log('---' + label + '---', 'info');
+  const vids = document.querySelectorAll('video');
+  log('video elements in DOM: ' + vids.length, vids.length ? 'ok' : 'bad');
+  vids.forEach((v, i) => {
+    const cs = window.getComputedStyle(v);
+    log(`  video[${i}] src/srcObject: ${v.src || (v.srcObject ? 'srcObject set' : 'none')}`, 'info');
+    log(`  video[${i}] size: ${v.videoWidth}x${v.videoHeight} (CSS ${cs.width}x${cs.height})`, 'info');
+    log(`  video[${i}] display:${cs.display} visibility:${cs.visibility} opacity:${cs.opacity} z:${cs.zIndex} pos:${cs.position}`, 'info');
+    log(`  video[${i}] paused: ${v.paused}, readyState: ${v.readyState}`, v.paused ? 'warn' : 'ok');
+  });
+  const canvases = document.querySelectorAll('canvas');
+  log('canvas elements: ' + canvases.length, canvases.length ? 'ok' : 'bad');
+  canvases.forEach((c, i) => {
+    const cs = window.getComputedStyle(c);
+    log(`  canvas[${i}] CSS ${cs.width}x${cs.height} display:${cs.display} z:${cs.zIndex}`, 'info');
+  });
+  const scn = document.querySelector('a-scene');
+  if (scn && scn.systems) {
+    log('a-scene systems: ' + Object.keys(scn.systems).join(','), 'info');
+    const mi = scn.systems['mindar-image-system'];
+    if (mi) log('mindar-image-system found. Keys: ' + Object.keys(mi).slice(0,10).join(','), 'ok');
+    else log('mindar-image-system NOT found.', 'bad');
+  }
+}
+</script>
+</body>
+</html>
