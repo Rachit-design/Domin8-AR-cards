@@ -7,6 +7,105 @@
   <title>Domin8 — League of Rising Stars</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <script>
+    // -------- video-cover: crops the video texture to fill the plane without stretching --------
+    AFRAME.registerComponent('video-cover', {
+      init: function () {
+        const el = this.el;
+        const apply = () => {
+          const mesh = el.getObject3D('mesh');
+          if (!mesh || !mesh.material || !mesh.material.map) return false;
+          const tex = mesh.material.map;
+          const video = tex.image;
+          if (!video || !video.videoWidth) return false;
+          const planeW = parseFloat(el.getAttribute('width'));
+          const planeH = parseFloat(el.getAttribute('height'));
+          const planeRatio = planeW / planeH;
+          const vRatio = video.videoWidth / video.videoHeight;
+          if (vRatio > planeRatio) {
+            const crop = (1 - planeRatio / vRatio) / 2;
+            tex.offset.set(crop, 0);
+            tex.repeat.set(1 - 2 * crop, 1);
+          } else {
+            const crop = (1 - vRatio / planeRatio) / 2;
+            tex.offset.set(0, crop);
+            tex.repeat.set(1, 1 - 2 * crop);
+          }
+          tex.needsUpdate = true;
+          return true;
+        };
+        const retry = () => { if (!apply()) setTimeout(retry, 120); };
+        el.addEventListener('object3dset', retry);
+        setTimeout(retry, 200);
+      }
+    });
+
+    // -------- glow-quad: radial pink halo via a custom shader --------
+    AFRAME.registerComponent('glow-quad', {
+      schema: {
+        color: { type: 'color', default: '#EF438B' },
+        intensity: { type: 'number', default: 0.7 },
+        falloff: { type: 'number', default: 2.0 }
+      },
+      init: function () {
+        const geom = new THREE.PlaneGeometry(1, 1);
+        const mat = new THREE.ShaderMaterial({
+          uniforms: {
+            uColor: { value: new THREE.Color(this.data.color) },
+            uIntensity: { value: this.data.intensity },
+            uFalloff: { value: this.data.falloff }
+          },
+          vertexShader:
+            'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+          fragmentShader:
+            'uniform vec3 uColor; uniform float uIntensity; uniform float uFalloff; varying vec2 vUv;' +
+            'void main(){ vec2 c = vUv - 0.5; float d = length(c) * 2.0; float a = pow(1.0 - clamp(d,0.0,1.0), uFalloff) * uIntensity; gl_FragColor = vec4(uColor, a); }',
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const mesh = new THREE.Mesh(geom, mat);
+        this.el.setObject3D('mesh', mesh);
+      }
+    });
+
+    // -------- billboard-smooth: video always softly faces the camera --------
+    AFRAME.registerComponent('billboard-smooth', {
+      schema: { speed: { type: 'number', default: 0.08 } },
+      init: function () {
+        this.camPos = new THREE.Vector3();
+        this.elPos = new THREE.Vector3();
+        this.up = new THREE.Vector3(0, 1, 0);
+        this.mat = new THREE.Matrix4();
+        this.targetQuat = new THREE.Quaternion();
+        this.parentQuat = new THREE.Quaternion();
+      },
+      tick: function () {
+        const cam = this.el.sceneEl.camera;
+        if (!cam) return;
+        cam.getWorldPosition(this.camPos);
+        this.el.object3D.getWorldPosition(this.elPos);
+        this.mat.lookAt(this.camPos, this.elPos, this.up);
+        this.targetQuat.setFromRotationMatrix(this.mat);
+        if (this.el.object3D.parent) {
+          this.el.object3D.parent.getWorldQuaternion(this.parentQuat);
+          this.parentQuat.invert();
+          this.targetQuat.premultiply(this.parentQuat);
+        }
+        this.el.object3D.quaternion.slerp(this.targetQuat, this.data.speed);
+      }
+    });
+
+    // -------- float-bob: subtle vertical float for extra magic --------
+    AFRAME.registerComponent('float-bob', {
+      schema: { amp: { default: 0.005 }, speed: { default: 1.5 } },
+      init: function () { this.t = 0; this.baseY = this.el.object3D.position.y; },
+      tick: function (_, dt) {
+        this.t += (dt || 16) / 1000;
+        this.el.object3D.position.y = this.baseY + Math.sin(this.t * this.data.speed) * this.data.amp;
+      }
+    });
+  </script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -16,7 +115,6 @@
       align-items: center; justify-content: center; color: #fff; padding: 24px;
       text-align: center; background: #0a0a0a; z-index: 1000;
     }
-
     #landing .brand { width:64px; height:64px; border-radius:12px;
       background: linear-gradient(135deg, #1A2193, #CE006D);
       display:flex; align-items:center; justify-content:center;
@@ -24,10 +122,8 @@
     #landing h1 { font-size: 22px; margin-bottom: 6px; color: #EF438B; letter-spacing: 2px; text-transform: uppercase; }
     #landing h2 { font-size: 14px; color: #CE006D; font-style: italic; letter-spacing: 1px; margin-bottom: 24px; }
     #landing p { font-size: 14px; line-height: 1.6; color: #999; max-width: 300px; }
-
     #error h1 { color: #EF438B; font-size: 20px; margin-bottom: 12px; }
     #error p { font-size: 14px; color: #999; max-width: 320px; }
-
     #scan-hint {
       position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.8); color: #fff; padding: 12px 24px; border-radius: 24px;
@@ -40,7 +136,6 @@
 </head>
 <body>
 
-<!-- LANDING — shown when no player param in URL -->
 <div id="landing" class="overlay" style="display:none;">
   <div class="brand">D8</div>
   <h1>League of Rising Stars</h1>
@@ -48,16 +143,14 @@
   <p>Scan the QR code on the back of a Domin8 gamer card to activate the AR experience.</p>
 </div>
 
-<!-- ERROR — shown when player param invalid -->
 <div id="error" class="overlay" style="display:none;">
   <h1>Card not found</h1>
   <p id="error-msg"></p>
 </div>
 
-<!-- SCAN HINT -->
 <div id="scan-hint">Point your camera at the card front</div>
 
-<!-- AR SCENE — declared inline so A-Frame initializes it normally -->
+<!-- AR SCENE -->
 <a-scene id="ar-scene" style="display:none;"
   mindar-image="imageTargetSrc: ./targets/targets.mind; uiScanning: no; uiLoading: no; uiError: no;"
   color-space="sRGB"
@@ -74,16 +167,29 @@
   <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
   <a-entity mindar-image-target="targetIndex: 0">
+
+    <!-- soft outer glow -->
+    <a-entity glow-quad="color: #EF438B; intensity: 0.55; falloff: 1.6"
+              position="0 0.148 -0.012"
+              scale="1.05 1.10 1"></a-entity>
+
+    <!-- inner hot glow -->
+    <a-entity glow-quad="color: #FF6FB1; intensity: 0.9; falloff: 2.8"
+              position="0 0.148 -0.006"
+              scale="0.85 0.92 1"></a-entity>
+
+    <!-- main video: bigger, properly cropped, lazy-billboard, gentle float -->
     <a-video src="#cardVideo"
-             position="0 0.148 0"
-             width="0.648"
-             height="0.705"
-             rotation="0 0 0"></a-video>
+             position="0 0.148 0.002"
+             width="0.72" height="0.78"
+             video-cover
+             billboard-smooth="speed: 0.07"
+             float-bob="amp: 0.006; speed: 1.4"
+             material="shader: flat; transparent: false"></a-video>
   </a-entity>
 </a-scene>
 
 <script>
-  // PLAYERS — map URL param to video + target index
   const PLAYERS = {
     "mamanotjoe": { targetIndex: 0, video: "./videos/mamanotjoe.mp4", name: "MAMANOTJOE" }
   };
@@ -102,13 +208,11 @@
     error.style.display = "flex";
     errMsg.textContent = `No player registered for code "${playerKey}". Check the QR link.`;
   } else {
-    // Configure scene for this player
     const player = PLAYERS[playerKey];
     document.getElementById("cardVideo").setAttribute("src", player.video);
     document.querySelector("[mindar-image-target]").setAttribute("mindar-image-target", "targetIndex: " + player.targetIndex);
     scene.style.display = "block";
 
-    // Wire scan hint to target events
     scene.addEventListener("loaded", () => {
       hint.style.display = "block";
       const target = document.querySelector("[mindar-image-target]");
