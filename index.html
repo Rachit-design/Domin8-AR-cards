@@ -152,21 +152,10 @@
     showError("Your browser does not support camera access. Try Chrome (Android) or Safari (iPhone).", "navigator.mediaDevices missing");
   } else {
     $start.style.display = "flex";
-    $startBtn.addEventListener("click", async () => {
+    $startBtn.addEventListener("click", () => {
       $start.style.display = "none";
       $loader.style.display = "flex";
-      try {
-        const probe = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-        probe.getTracks().forEach(t => t.stop());
-        buildScene(PLAYERS[playerKey]);
-      } catch (e) {
-        let friendly = "Camera could not start.";
-        if (e.name === "NotAllowedError") friendly = "You denied camera permission. Open browser site settings, allow camera, then reload.";
-        else if (e.name === "NotFoundError") friendly = "No camera detected on this device.";
-        else if (e.name === "NotReadableError") friendly = "Camera is in use by another app. Close other apps using the camera.";
-        else if (e.name === "SecurityError") friendly = "Browser blocked camera (security). Open in Chrome/Safari directly, not an in-app browser.";
-        showError(friendly, `${e.name}: ${e.message}`);
-      }
+      buildScene(PLAYERS[playerKey]);
     });
   }
 
@@ -174,9 +163,10 @@
     const root = document.getElementById("ar-root");
     root.innerHTML = `
       <a-scene
-        mindar-image="imageTargetSrc: ./targets/targets.mind; autoStart: true; uiScanning: no; uiLoading: no; uiError: no;"
+        mindar-image="imageTargetSrc: ./targets/targets.mind; autoStart: false; uiScanning: no; uiLoading: no; uiError: no;"
         color-space="sRGB"
-        renderer="colorManagement: true, physicallyCorrectLights"
+        embedded
+        renderer="colorManagement: true, physicallyCorrectLights, alpha: true"
         vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false">
 
@@ -204,10 +194,7 @@
 
     const scene = document.querySelector("a-scene");
 
-    scene.addEventListener("loaded", () => {
-      $loader.style.display = "none";
-      $hint.style.display = "block";
-
+    scene.addEventListener("loaded", async () => {
       const video  = document.querySelector("#cardVideo");
       const target = document.querySelector("[mindar-image-target]");
 
@@ -220,6 +207,19 @@
         $hint.style.display = "block";
         video.pause();
       });
+
+      try {
+        const mindarSystem = scene.systems["mindar-image-system"];
+        await mindarSystem.start();
+        $loader.style.display = "none";
+        $hint.style.display = "block";
+      } catch (e) {
+        let friendly = "AR engine could not start the camera.";
+        if (e && e.name === "NotAllowedError") friendly = "Camera permission denied. Open browser site settings → Camera → Allow, then reload.";
+        else if (e && e.name === "NotReadableError") friendly = "Camera is in use by another app. Close other camera apps and reload.";
+        else if (e && e.name === "OverconstrainedError") friendly = "No back camera matches the requested settings.";
+        showError(friendly, e ? `${e.name}: ${e.message}` : "unknown");
+      }
     });
 
     scene.addEventListener("arError", (e) => {
