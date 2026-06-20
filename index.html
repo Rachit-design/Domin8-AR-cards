@@ -31,7 +31,14 @@
     #loader p { font-size: 14px; color: #aaa; }
 
     #error h1 { color: #EF438B; font-size: 20px; margin-bottom: 12px; }
-    #error p { font-size: 14px; color: #999; max-width: 300px; }
+    #error p { font-size: 14px; color: #999; max-width: 320px; word-break: break-word; }
+    #error code { display:block; margin-top:12px; padding:8px 12px; background:#1a1a1a; border-radius:6px; color:#EF438B; font-size:12px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+    #start { z-index: 200; }
+    #start .brand { width:72px; height:72px; border-radius:14px; background: linear-gradient(135deg,#1A2193,#CE006D); display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:24px; margin-bottom:20px; }
+    #start h1 { font-size:18px; color:#EF438B; letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
+    #start p { font-size:13px; color:#999; max-width:280px; margin-bottom:28px; }
+    #start button { padding:16px 36px; font-size:14px; font-weight:700; letter-spacing:2px; text-transform:uppercase; border:none; border-radius:32px; background:#EF438B; color:#fff; cursor:pointer; }
 
     #scan-hint {
       position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
@@ -57,16 +64,25 @@
   <p>Scan the QR code on the back of a Domin8 gamer card to activate the AR experience.</p>
 </div>
 
+<!-- START — explicit user gesture so iOS/Android grant camera -->
+<div id="start" class="overlay" style="display:none;">
+  <div class="brand">D8</div>
+  <h1>Tap to activate</h1>
+  <p>We need camera access to bring the card to life. Allow when asked.</p>
+  <button id="start-btn">Start camera</button>
+</div>
+
 <!-- LOADER — shown while AR boots -->
-<div id="loader" class="overlay">
+<div id="loader" class="overlay" style="display:none;">
   <div class="spinner"></div>
   <p>Initializing camera…</p>
 </div>
 
 <!-- ERROR -->
 <div id="error" class="overlay" style="display:none;">
-  <h1>Card not found</h1>
+  <h1>Something went wrong</h1>
   <p id="error-msg"></p>
+  <code id="error-detail"></code>
 </div>
 
 <!-- SCAN HINT — shown when AR is ready but card not yet detected -->
@@ -112,18 +128,46 @@
   const $loader  = document.getElementById("loader");
   const $error   = document.getElementById("error");
   const $errMsg  = document.getElementById("error-msg");
+  const $errDet  = document.getElementById("error-detail");
   const $landing = document.getElementById("landing");
+  const $start   = document.getElementById("start");
+  const $startBtn= document.getElementById("start-btn");
   const $hint    = document.getElementById("scan-hint");
 
-  if (!playerKey) {
+  function showError(msg, detail) {
     $loader.style.display = "none";
+    $start.style.display = "none";
+    $error.style.display = "flex";
+    $errMsg.textContent = msg;
+    $errDet.textContent = detail || "";
+  }
+
+  if (!playerKey) {
     $landing.style.display = "flex";
   } else if (!PLAYERS[playerKey]) {
-    $loader.style.display = "none";
-    $error.style.display = "flex";
-    $errMsg.textContent = `No player registered for code "${playerKey}". Check the QR link.`;
+    showError(`No player registered for code "${playerKey}". Check the QR link.`, "");
+  } else if (!window.isSecureContext) {
+    showError("This page must run on HTTPS.", "isSecureContext = false");
+  } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showError("Your browser does not support camera access. Try Chrome (Android) or Safari (iPhone).", "navigator.mediaDevices missing");
   } else {
-    buildScene(PLAYERS[playerKey]);
+    $start.style.display = "flex";
+    $startBtn.addEventListener("click", async () => {
+      $start.style.display = "none";
+      $loader.style.display = "flex";
+      try {
+        const probe = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        probe.getTracks().forEach(t => t.stop());
+        buildScene(PLAYERS[playerKey]);
+      } catch (e) {
+        let friendly = "Camera could not start.";
+        if (e.name === "NotAllowedError") friendly = "You denied camera permission. Open browser site settings, allow camera, then reload.";
+        else if (e.name === "NotFoundError") friendly = "No camera detected on this device.";
+        else if (e.name === "NotReadableError") friendly = "Camera is in use by another app. Close other apps using the camera.";
+        else if (e.name === "SecurityError") friendly = "Browser blocked camera (security). Open in Chrome/Safari directly, not an in-app browser.";
+        showError(friendly, `${e.name}: ${e.message}`);
+      }
+    });
   }
 
   function buildScene(player) {
@@ -178,10 +222,14 @@
       });
     });
 
-    scene.addEventListener("arError", () => {
-      $loader.style.display = "none";
-      $error.style.display = "flex";
-      $errMsg.textContent = "Camera failed to start. Make sure you granted camera permission and reload the page.";
+    scene.addEventListener("arError", (e) => {
+      showError("AR engine failed to start.", "arError: " + (e && e.detail ? JSON.stringify(e.detail) : "unknown"));
+    });
+
+    window.addEventListener("error", (e) => {
+      if ($error.style.display !== "flex") {
+        showError("A script error occurred.", (e.message || "") + " @ " + (e.filename || "") + ":" + (e.lineno || ""));
+      }
     });
   }
 </script>

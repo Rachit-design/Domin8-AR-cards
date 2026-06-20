@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Camera Test — Domin8</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; background:#0a0a0a; color:#fff; font-family:-apple-system, BlinkMacSystemFont, sans-serif; }
+  body { display:flex; flex-direction:column; }
+  header { padding:16px; background:#1a1a1a; border-bottom:1px solid #333; }
+  header h1 { font-size:16px; color:#EF438B; letter-spacing:1px; text-transform:uppercase; }
+  header p { font-size:12px; color:#888; margin-top:4px; }
+  #log {
+    flex:0 0 auto; padding:12px 16px; background:#111;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size:12px;
+    max-height:40vh; overflow-y:auto; border-bottom:1px solid #333;
+  }
+  .row { padding:4px 0; border-bottom:1px solid #1f1f1f; word-break: break-all; }
+  .row.ok   { color:#4ade80; }
+  .row.bad  { color:#ef4444; }
+  .row.info { color:#94a3b8; }
+  #stage { flex:1 1 auto; display:flex; align-items:center; justify-content:center; position:relative; }
+  video { width:100%; height:100%; object-fit:cover; background:#000; }
+  button {
+    padding:18px 32px; font-size:16px; border:none; border-radius:32px;
+    background:#EF438B; color:#fff; font-weight:700; letter-spacing:1px; cursor:pointer;
+  }
+  .footer { padding:12px 16px; background:#1a1a1a; font-size:11px; color:#666; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Camera Diagnostic</h1>
+  <p>Tap the button. If anything fails, the red line tells us why.</p>
+</header>
+<div id="log"></div>
+<div id="stage">
+  <button id="go">Tap to start camera</button>
+</div>
+<div class="footer">Domin8 AR — diagnostic page</div>
+
+<script>
+const $log = document.getElementById('log');
+const $stage = document.getElementById('stage');
+const $btn = document.getElementById('go');
+
+function log(msg, kind='info'){
+  const row = document.createElement('div');
+  row.className = 'row ' + kind;
+  row.textContent = msg;
+  $log.appendChild(row);
+  $log.scrollTop = $log.scrollHeight;
+}
+
+log('Page loaded.', 'ok');
+log('URL: ' + location.href, 'info');
+log('Secure context (HTTPS): ' + window.isSecureContext, window.isSecureContext ? 'ok' : 'bad');
+log('User agent: ' + navigator.userAgent, 'info');
+log('mediaDevices available: ' + !!navigator.mediaDevices, navigator.mediaDevices ? 'ok' : 'bad');
+log('getUserMedia available: ' + !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+    (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) ? 'ok' : 'bad');
+
+if (navigator.permissions && navigator.permissions.query) {
+  navigator.permissions.query({ name: 'camera' }).then(p => {
+    log('Permission state (before): ' + p.state, p.state === 'granted' ? 'ok' : (p.state === 'denied' ? 'bad' : 'info'));
+  }).catch(e => log('Permission query failed: ' + e.message, 'info'));
+}
+
+$btn.addEventListener('click', async () => {
+  $btn.disabled = true;
+  $btn.textContent = 'Requesting camera...';
+  log('User tapped. Calling getUserMedia...', 'info');
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false
+    });
+    log('getUserMedia succeeded.', 'ok');
+
+    const tracks = stream.getVideoTracks();
+    log('Video tracks: ' + tracks.length, tracks.length ? 'ok' : 'bad');
+    if (tracks.length) {
+      const t = tracks[0];
+      log('Track label: ' + (t.label || '(no label)'), 'info');
+      log('Track enabled: ' + t.enabled, t.enabled ? 'ok' : 'bad');
+      log('Track readyState: ' + t.readyState, t.readyState === 'live' ? 'ok' : 'bad');
+      const s = t.getSettings ? t.getSettings() : {};
+      log('Resolution: ' + (s.width || '?') + 'x' + (s.height || '?'), 'info');
+    }
+
+    const v = document.createElement('video');
+    v.autoplay = true; v.playsInline = true; v.muted = true;
+    v.srcObject = stream;
+    $stage.innerHTML = '';
+    $stage.appendChild(v);
+    v.onloadedmetadata = () => {
+      log('Video metadata loaded: ' + v.videoWidth + 'x' + v.videoHeight,
+          v.videoWidth ? 'ok' : 'bad');
+      v.play().then(() => log('Video playing.', 'ok'))
+              .catch(e => log('Video play failed: ' + e.message, 'bad'));
+    };
+  } catch (e) {
+    log('getUserMedia FAILED.', 'bad');
+    log('Error name: ' + e.name, 'bad');
+    log('Error message: ' + e.message, 'bad');
+    $btn.disabled = false;
+    $btn.textContent = 'Try again';
+
+    if (e.name === 'NotAllowedError') {
+      log('=> You denied camera permission. Clear site data and reload.', 'info');
+    } else if (e.name === 'NotFoundError') {
+      log('=> No camera detected on this device.', 'info');
+    } else if (e.name === 'NotReadableError') {
+      log('=> Camera is in use by another app. Close other apps.', 'info');
+    } else if (e.name === 'SecurityError') {
+      log('=> Not a secure context. Must be HTTPS.', 'info');
+    }
+  }
+});
+</script>
+</body>
+</html>
