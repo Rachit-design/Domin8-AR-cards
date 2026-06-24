@@ -105,6 +105,59 @@
         this.el.object3D.position.y = this.baseY + Math.sin(this.t * this.data.speed) * this.data.amp;
       }
     });
+
+    // -------- pendulum: rotational swing physics, driven by parent motion --------
+    AFRAME.registerComponent('pendulum', {
+      schema: {
+        damping:     { default: 0.96 },  // velocity retention per frame (higher = slower decay)
+        stiffness:   { default: 8.0 },   // restoring force toward vertical (higher = stiffer)
+        sensitivity: { default: 6.0 },   // how strongly external accel pushes the swing
+        idleAmp:     { default: 0.02 },  // tiny ambient sway when at rest
+        idleSpeed:   { default: 1.2 }
+      },
+      init: function () {
+        this.angle = 0;
+        this.angVel = 0;
+        this.lastPos = new THREE.Vector3();
+        this.currPos = new THREE.Vector3();
+        this.vel = new THREE.Vector3();
+        this.lastVel = new THREE.Vector3();
+        this.smoothAccel = 0;
+        this.first = true;
+        this.t = 0;
+      },
+      tick: function (_, dt) {
+        if (!dt || dt > 100) return;
+        const s = dt / 1000;
+        this.t += s;
+        const p = this.el.object3D.parent;
+        if (!p) return;
+        p.getWorldPosition(this.currPos);
+        if (this.first) {
+          this.lastPos.copy(this.currPos);
+          this.first = false;
+          return;
+        }
+        this.vel.subVectors(this.currPos, this.lastPos).divideScalar(s);
+        this.lastPos.copy(this.currPos);
+        const rawAccel = (this.vel.x - this.lastVel.x) / s;
+        this.lastVel.copy(this.vel);
+        // low-pass to absorb mind-ar tracking jitter
+        this.smoothAccel = this.smoothAccel * 0.75 + rawAccel * 0.25;
+        const external = -this.smoothAccel * this.data.sensitivity;
+        // subtle idle breeze so it never looks frozen
+        const idle = Math.sin(this.t * this.data.idleSpeed) * this.data.idleAmp;
+        const restoring = -this.data.stiffness * Math.sin(this.angle - idle);
+        const angAccel = external + restoring;
+        this.angVel = this.angVel * this.data.damping + angAccel * s;
+        this.angle += this.angVel * s;
+        if (Math.abs(this.angle) > 1.2) {
+          this.angle = Math.sign(this.angle) * 1.2;
+          this.angVel = 0;
+        }
+        this.el.object3D.rotation.z = this.angle;
+      }
+    });
   </script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -183,12 +236,39 @@
              position="0 0.148 0.002"
              width="0.72" height="0.78"
              rotation="0 0 0"></a-video>
+
+    <!-- HANGING RANK BADGE — top right corner of card -->
+    <a-entity id="badge-anchor" position="0.28 0.44 0.015">
+      <a-entity pendulum="damping: 0.96; stiffness: 8; sensitivity: 6">
+        <!-- chain (thin metal cylinder hanging down from anchor) -->
+        <a-cylinder height="0.08" radius="0.0012"
+                    position="0 -0.04 0"
+                    color="#bfbfbf"
+                    material="metalness: 0.85; roughness: 0.25; shader: standard"></a-cylinder>
+        <!-- attachment loop where chain meets badge -->
+        <a-torus radius="0.006" radius-tubular="0.0014"
+                 position="0 -0.083 0"
+                 rotation="90 0 0"
+                 color="#bfbfbf"
+                 material="metalness: 0.85; roughness: 0.25"></a-torus>
+        <!-- the rank badge GLB (Immortal for mamanotjoe) -->
+        <a-gltf-model id="rank-badge"
+                      src="./models/ranks/immortal.glb"
+                      position="0 -0.14 0"
+                      scale="2 2 2"
+                      rotation="0 0 0"></a-gltf-model>
+      </a-entity>
+    </a-entity>
+
+    <!-- a little extra light so the GLB doesn't look flat -->
+    <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
+    <a-light type="directional" color="#ffffff" intensity="0.8" position="0.5 1 1"></a-light>
   </a-entity>
 </a-scene>
 
 <script>
   const PLAYERS = {
-    "mamanotjoe": { targetIndex: 0, video: "./videos/mamanotjoe.mp4", name: "MAMANOTJOE" }
+    "mamanotjoe": { targetIndex: 0, video: "./videos/mamanotjoe.mp4", rank: "immortal", name: "MAMANOTJOE" }
   };
 
   const params = new URLSearchParams(window.location.search);
@@ -208,6 +288,9 @@
     const player = PLAYERS[playerKey];
     document.getElementById("cardVideo").setAttribute("src", player.video);
     document.querySelector("[mindar-image-target]").setAttribute("mindar-image-target", "targetIndex: " + player.targetIndex);
+    if (player.rank) {
+      document.getElementById("rank-badge").setAttribute("src", "./models/ranks/" + player.rank + ".glb");
+    }
     scene.style.display = "block";
 
     scene.addEventListener("loaded", () => {
