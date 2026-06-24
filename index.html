@@ -260,21 +260,27 @@
              video-blend="feather: 0.28"></a-video>
 
     <!-- HANGING RANK BADGE — anchored at the visible top-right hole.
-         hang-down keeps the chain pointing to world-down, so it dangles
-         like a real pendant regardless of how the card is tilted. -->
+         hang-down keeps the chain pointing to world-down. -->
     <a-entity id="badge-anchor" position="0.30 0.46 0.012">
       <a-entity hang-down="smoothness: 0.18">
-        <!-- chain -->
-        <a-cylinder height="0.10" radius="0.0014"
+        <!-- chain (thicker for visibility) -->
+        <a-cylinder height="0.10" radius="0.003"
                     position="0 -0.05 0"
-                    color="#cfcfcf"
-                    material="metalness: 0.9; roughness: 0.22; shader: standard"></a-cylinder>
+                    color="#dddddd"
+                    material="shader: flat; emissive: #888888"></a-cylinder>
         <!-- loop where chain meets badge -->
-        <a-torus radius="0.007" radius-tubular="0.0017"
+        <a-torus radius="0.012" radius-tubular="0.003"
                  position="0 -0.105 0"
                  rotation="90 0 0"
-                 color="#cfcfcf"
-                 material="metalness: 0.9; roughness: 0.22"></a-torus>
+                 color="#dddddd"
+                 material="shader: flat"></a-torus>
+        <!-- DEBUG: bright unlit marker where the badge should render.
+             If this shows but the GLB doesn't, the badge model has a lighting/material problem.
+             If this doesn't show either, the entity position is wrong. -->
+        <a-sphere radius="0.025"
+                  position="0 -0.17 0"
+                  color="#00FF66"
+                  material="shader: flat; opacity: 0.7; transparent: true"></a-sphere>
         <!-- the rank badge GLB -->
         <a-gltf-model id="rank-badge"
                       src="./models/ranks/immortal.glb"
@@ -284,9 +290,10 @@
       </a-entity>
     </a-entity>
 
-    <!-- light so the PBR badge materials don't render flat -->
-    <a-light type="ambient" color="#ffffff" intensity="0.55"></a-light>
-    <a-light type="directional" color="#ffffff" intensity="0.9" position="0.5 1 1"></a-light>
+    <!-- strong lights so PBR badge materials definitely render -->
+    <a-light type="ambient" color="#ffffff" intensity="1.0"></a-light>
+    <a-light type="directional" color="#ffffff" intensity="1.4" position="0 0 1"></a-light>
+    <a-light type="hemisphere" color="#ffffff" groundColor="#444444" intensity="0.8"></a-light>
   </a-entity>
 </a-scene>
 
