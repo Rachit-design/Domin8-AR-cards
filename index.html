@@ -259,42 +259,39 @@
              width="1.05" height="1.30"
              video-blend="feather: 0.28"></a-video>
 
-    <!-- HANGING RANK BADGE — anchored at the visible top-right hole.
-         hang-down keeps the chain pointing to world-down. -->
+    <!-- DEBUG: bright reference cubes at known positions on the card.
+         Red = card center. Blue = top-right corner where badge should anchor.
+         If you see these, mind-ar is tracking and child entities render. -->
+    <a-box position="0 0 0.02" scale="0.05 0.05 0.05"
+           color="#FF0000" material="shader: flat"></a-box>
+    <a-box position="0.30 0.46 0.02" scale="0.05 0.05 0.05"
+           color="#0000FF" material="shader: flat"></a-box>
+
+    <!-- HANGING RANK BADGE — hang-down REMOVED for debug; static rotation. -->
     <a-entity id="badge-anchor" position="0.30 0.46 0.012">
-      <a-entity hang-down="smoothness: 0.18">
+      <a-entity>
         <!-- chain (thicker for visibility) -->
         <a-cylinder height="0.10" radius="0.003"
                     position="0 -0.05 0"
-                    color="#dddddd"
-                    material="shader: flat; emissive: #888888"></a-cylinder>
-        <!-- loop where chain meets badge -->
-        <a-torus radius="0.012" radius-tubular="0.003"
-                 position="0 -0.105 0"
-                 rotation="90 0 0"
-                 color="#dddddd"
-                 material="shader: flat"></a-torus>
-        <!-- DEBUG: bright unlit marker where the badge should render.
-             If this shows but the GLB doesn't, the badge model has a lighting/material problem.
-             If this doesn't show either, the entity position is wrong. -->
-        <a-sphere radius="0.025"
+                    color="#ffffff"
+                    material="shader: flat"></a-cylinder>
+        <!-- bright unlit marker where the GLB should render -->
+        <a-sphere radius="0.03"
                   position="0 -0.17 0"
                   color="#00FF66"
-                  material="shader: flat; opacity: 0.7; transparent: true"></a-sphere>
+                  material="shader: flat"></a-sphere>
         <!-- the rank badge GLB -->
         <a-gltf-model id="rank-badge"
                       src="./models/ranks/immortal.glb"
                       position="0 -0.17 0"
-                      scale="3 3 3"
-                      rotation="0 0 0"></a-gltf-model>
+                      scale="3 3 3"></a-gltf-model>
       </a-entity>
     </a-entity>
-
-    <!-- strong lights so PBR badge materials definitely render -->
-    <a-light type="ambient" color="#ffffff" intensity="1.0"></a-light>
-    <a-light type="directional" color="#ffffff" intensity="1.4" position="0 0 1"></a-light>
-    <a-light type="hemisphere" color="#ffffff" groundColor="#444444" intensity="0.8"></a-light>
   </a-entity>
+
+  <!-- lights at SCENE level (not inside target) so they always exist -->
+  <a-light type="ambient" color="#ffffff" intensity="1.0"></a-light>
+  <a-light type="directional" color="#ffffff" intensity="1.2" position="0 1 1"></a-light>
 </a-scene>
 
 <script>
