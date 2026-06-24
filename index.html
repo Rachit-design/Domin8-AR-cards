@@ -106,56 +106,87 @@
       }
     });
 
-    // -------- pendulum: rotational swing physics, driven by parent motion --------
-    AFRAME.registerComponent('pendulum', {
-      schema: {
-        damping:     { default: 0.96 },  // velocity retention per frame (higher = slower decay)
-        stiffness:   { default: 8.0 },   // restoring force toward vertical (higher = stiffer)
-        sensitivity: { default: 6.0 },   // how strongly external accel pushes the swing
-        idleAmp:     { default: 0.02 },  // tiny ambient sway when at rest
-        idleSpeed:   { default: 1.2 }
-      },
+    // -------- hang-down: pivot's local -Y always points to world -Y (gravity).
+    //         The chain+badge hang straight down regardless of how the card is tilted.
+    //         Slerp gives smooth, natural easing — looks like real pendulum settling.
+    AFRAME.registerComponent('hang-down', {
+      schema: { smoothness: { default: 0.18 } },
       init: function () {
-        this.angle = 0;
-        this.angVel = 0;
-        this.lastPos = new THREE.Vector3();
-        this.currPos = new THREE.Vector3();
-        this.vel = new THREE.Vector3();
-        this.lastVel = new THREE.Vector3();
-        this.smoothAccel = 0;
-        this.first = true;
-        this.t = 0;
+        this.worldDown   = new THREE.Vector3(0, -1, 0);
+        this.localDown   = new THREE.Vector3();
+        this.parentQuat  = new THREE.Quaternion();
+        this.invParent   = new THREE.Quaternion();
+        this.targetQuat  = new THREE.Quaternion();
+        this.localYDown  = new THREE.Vector3(0, -1, 0);
       },
-      tick: function (_, dt) {
-        if (!dt || dt > 100) return;
-        const s = dt / 1000;
-        this.t += s;
+      tick: function () {
         const p = this.el.object3D.parent;
         if (!p) return;
-        p.getWorldPosition(this.currPos);
-        if (this.first) {
-          this.lastPos.copy(this.currPos);
-          this.first = false;
-          return;
-        }
-        this.vel.subVectors(this.currPos, this.lastPos).divideScalar(s);
-        this.lastPos.copy(this.currPos);
-        const rawAccel = (this.vel.x - this.lastVel.x) / s;
-        this.lastVel.copy(this.vel);
-        // low-pass to absorb mind-ar tracking jitter
-        this.smoothAccel = this.smoothAccel * 0.75 + rawAccel * 0.25;
-        const external = -this.smoothAccel * this.data.sensitivity;
-        // subtle idle breeze so it never looks frozen
-        const idle = Math.sin(this.t * this.data.idleSpeed) * this.data.idleAmp;
-        const restoring = -this.data.stiffness * Math.sin(this.angle - idle);
-        const angAccel = external + restoring;
-        this.angVel = this.angVel * this.data.damping + angAccel * s;
-        this.angle += this.angVel * s;
-        if (Math.abs(this.angle) > 1.2) {
-          this.angle = Math.sign(this.angle) * 1.2;
-          this.angVel = 0;
-        }
-        this.el.object3D.rotation.z = this.angle;
+        p.getWorldQuaternion(this.parentQuat);
+        this.invParent.copy(this.parentQuat).invert();
+        // world-down expressed in parent's local frame
+        this.localDown.copy(this.worldDown).applyQuaternion(this.invParent);
+        // build local rotation that maps local -Y to that direction
+        this.targetQuat.setFromUnitVectors(this.localYDown, this.localDown);
+        this.el.object3D.quaternion.slerp(this.targetQuat, this.data.smoothness);
+      }
+    });
+
+    // -------- video-blend: video texture + smooth alpha vignette so the
+    //         video merges into the card instead of having a hard rectangle edge.
+    AFRAME.registerComponent('video-blend', {
+      schema: {
+        feather: { default: 0.32 }   // 0 = hard edge, 1 = fully faded everywhere
+      },
+      init: function () {
+        const el = this.el;
+        const feather = this.data.feather;
+        const setup = () => {
+          const mesh = el.getObject3D('mesh');
+          if (!mesh || !mesh.material || !mesh.material.map) { setTimeout(setup, 120); return; }
+          const videoTex = mesh.material.map;
+          const video = videoTex.image;
+          if (!video || !video.videoWidth) { setTimeout(setup, 120); return; }
+          videoTex.minFilter = THREE.LinearFilter;
+          videoTex.magFilter = THREE.LinearFilter;
+
+          const planeW = parseFloat(el.getAttribute('width'));
+          const planeH = parseFloat(el.getAttribute('height'));
+          const planeRatio = planeW / planeH;
+          const vRatio = video.videoWidth / video.videoHeight;
+          // cover: scale UVs so video fills plane without stretching
+          let sx = 1, sy = 1, ox = 0, oy = 0;
+          if (vRatio > planeRatio) { sx = planeRatio / vRatio; ox = (1 - sx) / 2; }
+          else                     { sy = vRatio / planeRatio; oy = (1 - sy) / 2; }
+
+          const mat = new THREE.ShaderMaterial({
+            uniforms: {
+              uMap:     { value: videoTex },
+              uFeather: { value: feather },
+              uScale:   { value: new THREE.Vector2(sx, sy) },
+              uOffset:  { value: new THREE.Vector2(ox, oy) }
+            },
+            vertexShader:
+              'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+            fragmentShader:
+              'uniform sampler2D uMap; uniform float uFeather; uniform vec2 uScale; uniform vec2 uOffset;' +
+              'varying vec2 vUv;' +
+              'void main(){' +
+              '  vec2 vidUv = vUv * uScale + uOffset;' +
+              '  vec4 c = texture2D(uMap, vidUv);' +
+              '  vec2 d = abs(vUv - 0.5) * 2.0;' +   // 0 at center, 1 at edges
+              '  float maxD = max(d.x, d.y);' +
+              '  float edge = smoothstep(1.0, 1.0 - uFeather, maxD);' +
+              '  gl_FragColor = vec4(c.rgb, edge);' +
+              '}',
+            transparent: true,
+            depthWrite: false,
+            side: THREE.DoubleSide
+          });
+          mesh.material = mat;
+        };
+        el.addEventListener('object3dset', setup);
+        setTimeout(setup, 200);
       }
     });
   </script>
@@ -221,48 +252,41 @@
 
   <a-entity mindar-image-target="targetIndex: 0">
 
-    <!-- soft outer glow -->
-    <a-entity glow-quad="color: #EF438B; intensity: 0.55; falloff: 1.6"
-              position="0 0.148 -0.012"
-              scale="1.05 1.10 1"></a-entity>
-
-    <!-- inner hot glow -->
-    <a-entity glow-quad="color: #FF6FB1; intensity: 0.9; falloff: 2.8"
-              position="0 0.148 -0.006"
-              scale="0.85 0.92 1"></a-entity>
-
-    <!-- main video (debugging: extras temporarily removed) -->
+    <!-- MAIN VIDEO — spills over the whole card, feathered alpha so the edges
+         dissolve into the printed card art (no hard rectangle) -->
     <a-video src="#cardVideo"
-             position="0 0.148 0.002"
-             width="0.72" height="0.78"
-             rotation="0 0 0"></a-video>
+             position="0 0.07 0.002"
+             width="0.85" height="0.95"
+             video-blend="feather: 0.30"></a-video>
 
-    <!-- HANGING RANK BADGE — top right corner of card -->
-    <a-entity id="badge-anchor" position="0.28 0.44 0.015">
-      <a-entity pendulum="damping: 0.96; stiffness: 8; sensitivity: 6">
-        <!-- chain (thin metal cylinder hanging down from anchor) -->
-        <a-cylinder height="0.08" radius="0.0012"
-                    position="0 -0.04 0"
-                    color="#bfbfbf"
-                    material="metalness: 0.85; roughness: 0.25; shader: standard"></a-cylinder>
-        <!-- attachment loop where chain meets badge -->
-        <a-torus radius="0.006" radius-tubular="0.0014"
-                 position="0 -0.083 0"
+    <!-- HANGING RANK BADGE — anchored at the visible top-right hole.
+         hang-down keeps the chain pointing to world-down, so it dangles
+         like a real pendant regardless of how the card is tilted. -->
+    <a-entity id="badge-anchor" position="0.30 0.46 0.012">
+      <a-entity hang-down="smoothness: 0.18">
+        <!-- chain -->
+        <a-cylinder height="0.10" radius="0.0014"
+                    position="0 -0.05 0"
+                    color="#cfcfcf"
+                    material="metalness: 0.9; roughness: 0.22; shader: standard"></a-cylinder>
+        <!-- loop where chain meets badge -->
+        <a-torus radius="0.007" radius-tubular="0.0017"
+                 position="0 -0.105 0"
                  rotation="90 0 0"
-                 color="#bfbfbf"
-                 material="metalness: 0.85; roughness: 0.25"></a-torus>
-        <!-- the rank badge GLB (Immortal for mamanotjoe) -->
+                 color="#cfcfcf"
+                 material="metalness: 0.9; roughness: 0.22"></a-torus>
+        <!-- the rank badge GLB -->
         <a-gltf-model id="rank-badge"
                       src="./models/ranks/immortal.glb"
-                      position="0 -0.14 0"
-                      scale="2 2 2"
+                      position="0 -0.17 0"
+                      scale="3 3 3"
                       rotation="0 0 0"></a-gltf-model>
       </a-entity>
     </a-entity>
 
-    <!-- a little extra light so the GLB doesn't look flat -->
-    <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
-    <a-light type="directional" color="#ffffff" intensity="0.8" position="0.5 1 1"></a-light>
+    <!-- light so the PBR badge materials don't render flat -->
+    <a-light type="ambient" color="#ffffff" intensity="0.55"></a-light>
+    <a-light type="directional" color="#ffffff" intensity="0.9" position="0.5 1 1"></a-light>
   </a-entity>
 </a-scene>
 
