@@ -158,6 +158,7 @@
                 }
                 if ('metalness' in m) m.metalness = self.data.metalness;
                 if ('roughness' in m) m.roughness = self.data.roughness;
+                m.side = THREE.DoubleSide;  // safety: render both faces so flips don't hide the badge
                 m.needsUpdate = true;
               });
             }
