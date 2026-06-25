@@ -132,9 +132,17 @@
       }
     });
 
-    // -------- boost-pbr: brightens GLB materials so they aren't black under PBR --------
-    AFRAME.registerComponent('boost-pbr', {
-      schema: { emissive: { type: 'color', default: '#A055CC' }, emissiveIntensity: { default: 0.45 } },
+    // -------- tame-pbr: tame metallic GLBs so base color + emissive show through.
+    //         The Valorant badge materials are highly metallic — under simple lighting
+    //         they reflect everything as flat silver. We force low metalness, higher
+    //         roughness, and rank-tinted emissive so the badge reads as itself. --------
+    AFRAME.registerComponent('tame-pbr', {
+      schema: {
+        emissive: { type: 'color', default: '#7B2BB0' },
+        emissiveIntensity: { default: 0.35 },
+        metalness: { default: 0.20 },
+        roughness: { default: 0.55 }
+      },
       init: function () {
         const self = this;
         this.el.addEventListener('model-loaded', () => {
@@ -148,8 +156,8 @@
                   m.emissive = new THREE.Color(self.data.emissive);
                   m.emissiveIntensity = self.data.emissiveIntensity;
                 }
-                if ('metalness' in m) m.metalness = Math.min(0.5, m.metalness ?? 0.5);
-                if ('roughness' in m) m.roughness = Math.max(0.35, m.roughness ?? 0.5);
+                if ('metalness' in m) m.metalness = self.data.metalness;
+                if ('roughness' in m) m.roughness = self.data.roughness;
                 m.needsUpdate = true;
               });
             }
@@ -285,20 +293,31 @@
              width="1.05" height="1.30"
              video-blend="feather: 0.28"></a-video>
 
-    <!-- DEBUG: 3 huge boxes at different positions, DIRECT children of target.
-         All should be visible if the entity hierarchy works. -->
-    <a-box position="0 0 0.05" scale="0.10 0.10 0.10"
-           color="#FF0000" material="shader: flat"></a-box>
-    <a-box position="0.33 0.48 0.05" scale="0.10 0.10 0.10"
-           color="#0000FF" material="shader: flat"></a-box>
-    <a-box position="0.20 0.20 0.05" scale="0.10 0.10 0.10"
-           color="#00FF00" material="shader: flat"></a-box>
-
-    <!-- GLB direct child of target — no nesting, no components, generous scale -->
-    <a-gltf-model id="rank-badge"
-                  src="./models/ranks/immortal.glb"
-                  position="0.33 0.30 0.05"
-                  scale="8 8 8"></a-gltf-model>
+    <!-- HANGING RANK BADGE — anchored at top-right corner of the card.
+         The badge-anchor sits at the hole, the chain hangs down, the badge
+         dangles below. hang-down keeps the chain pointing to world-down
+         (gravity) regardless of card tilt. -->
+    <a-entity id="badge-anchor" position="0.34 0.48 0.018">
+      <a-entity hang-down="smoothness: 0.18">
+        <!-- chain -->
+        <a-cylinder height="0.10" radius="0.0025"
+                    position="0 -0.05 0"
+                    color="#dddddd"
+                    material="metalness: 0.8; roughness: 0.3; shader: standard"></a-cylinder>
+        <!-- loop where chain meets badge -->
+        <a-torus radius="0.010" radius-tubular="0.0024"
+                 position="0 -0.105 0"
+                 rotation="90 0 0"
+                 color="#dddddd"
+                 material="metalness: 0.8; roughness: 0.3"></a-torus>
+        <!-- rank badge GLB (rank-tinted emissive set per player below) -->
+        <a-gltf-model id="rank-badge"
+                      src="./models/ranks/immortal.glb"
+                      position="0 -0.17 0"
+                      scale="4 4 4"
+                      tame-pbr="emissive: #7B2BB0; emissiveIntensity: 0.4; metalness: 0.18; roughness: 0.55"></a-gltf-model>
+      </a-entity>
+    </a-entity>
   </a-entity>
 
   <!-- lights at SCENE level (not inside target) so they always exist -->
@@ -307,8 +326,31 @@
 </a-scene>
 
 <script>
+  // -----------------------------------------------------------------
+  // PLAYER REGISTRY
+  // To add a new player:
+  //   1. Drop their card-front PNG, recompile targets.mind, note the targetIndex
+  //   2. Drop their video into ./videos/<key>.mp4
+  //   3. Add an entry here with their key (URL param), targetIndex, and rank
+  // -----------------------------------------------------------------
   const PLAYERS = {
     "mamanotjoe": { targetIndex: 0, video: "./videos/mamanotjoe.mp4", rank: "immortal", name: "MAMANOTJOE" }
+    // "ghostwire":  { targetIndex: 1, video: "./videos/ghostwire.mp4",  rank: "diamond",   name: "GHOSTWIRE" },
+    // "tag":        { targetIndex: 2, video: "./videos/tag.mp4",        rank: "ascendant", name: "TAG" },
+    // ...
+  };
+
+  // RANK TINT — emissive color + intensity per Valorant tier so each badge reads correctly
+  const RANK_TINT = {
+    iron:      { emissive: '#7A7A7A', intensity: 0.25 },
+    bronze:    { emissive: '#A66B3B', intensity: 0.30 },
+    silver:    { emissive: '#B8B8B8', intensity: 0.30 },
+    gold:      { emissive: '#D4A82A', intensity: 0.40 },
+    platinum:  { emissive: '#3FB3B0', intensity: 0.35 },
+    diamond:   { emissive: '#9B5BD9', intensity: 0.40 },
+    ascendant: { emissive: '#3FAF7F', intensity: 0.40 },
+    immortal:  { emissive: '#B6324B', intensity: 0.45 },
+    radiant:   { emissive: '#F0E4A3', intensity: 0.55 }
   };
 
   const params = new URLSearchParams(window.location.search);
@@ -329,7 +371,15 @@
     document.getElementById("cardVideo").setAttribute("src", player.video);
     document.querySelector("[mindar-image-target]").setAttribute("mindar-image-target", "targetIndex: " + player.targetIndex);
     if (player.rank) {
-      document.getElementById("rank-badge").setAttribute("src", "./models/ranks/" + player.rank + ".glb");
+      const badge = document.getElementById("rank-badge");
+      badge.setAttribute("src", "./models/ranks/" + player.rank + ".glb");
+      const tint = RANK_TINT[player.rank];
+      if (tint) {
+        badge.setAttribute("tame-pbr",
+          "emissive: " + tint.emissive +
+          "; emissiveIntensity: " + tint.intensity +
+          "; metalness: 0.18; roughness: 0.55");
+      }
     }
     scene.style.display = "block";
 
