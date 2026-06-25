@@ -132,6 +132,32 @@
       }
     });
 
+    // -------- boost-pbr: brightens GLB materials so they aren't black under PBR --------
+    AFRAME.registerComponent('boost-pbr', {
+      schema: { emissive: { type: 'color', default: '#A055CC' }, emissiveIntensity: { default: 0.45 } },
+      init: function () {
+        const self = this;
+        this.el.addEventListener('model-loaded', () => {
+          const root = self.el.getObject3D('mesh');
+          if (!root) return;
+          root.traverse((n) => {
+            if (n.isMesh && n.material) {
+              const mats = Array.isArray(n.material) ? n.material : [n.material];
+              mats.forEach((m) => {
+                if ('emissive' in m) {
+                  m.emissive = new THREE.Color(self.data.emissive);
+                  m.emissiveIntensity = self.data.emissiveIntensity;
+                }
+                if ('metalness' in m) m.metalness = Math.min(0.5, m.metalness ?? 0.5);
+                if ('roughness' in m) m.roughness = Math.max(0.35, m.roughness ?? 0.5);
+                m.needsUpdate = true;
+              });
+            }
+          });
+        });
+      }
+    });
+
     // -------- video-blend: video texture + smooth alpha vignette so the
     //         video merges into the card instead of having a hard rectangle edge.
     AFRAME.registerComponent('video-blend', {
@@ -259,32 +285,27 @@
              width="1.05" height="1.30"
              video-blend="feather: 0.28"></a-video>
 
-    <!-- DEBUG: bright reference cubes at known positions on the card.
-         Red = card center. Blue = top-right corner where badge should anchor.
-         If you see these, mind-ar is tracking and child entities render. -->
-    <a-box position="0 0 0.02" scale="0.05 0.05 0.05"
-           color="#FF0000" material="shader: flat"></a-box>
-    <a-box position="0.30 0.46 0.02" scale="0.05 0.05 0.05"
-           color="#0000FF" material="shader: flat"></a-box>
-
-    <!-- HANGING RANK BADGE — hang-down REMOVED for debug; static rotation. -->
-    <a-entity id="badge-anchor" position="0.30 0.46 0.012">
-      <a-entity>
-        <!-- chain (thicker for visibility) -->
-        <a-cylinder height="0.10" radius="0.003"
-                    position="0 -0.05 0"
-                    color="#ffffff"
-                    material="shader: flat"></a-cylinder>
-        <!-- bright unlit marker where the GLB should render -->
-        <a-sphere radius="0.03"
-                  position="0 -0.17 0"
-                  color="#00FF66"
-                  material="shader: flat"></a-sphere>
-        <!-- the rank badge GLB -->
+    <!-- HANGING RANK BADGE — anchored at the visible top-right hole.
+         hang-down keeps the chain pointing to world-down (gravity). -->
+    <a-entity id="badge-anchor" position="0.33 0.48 0.012">
+      <a-entity hang-down="smoothness: 0.18">
+        <!-- chain -->
+        <a-cylinder height="0.12" radius="0.0018"
+                    position="0 -0.06 0"
+                    color="#dddddd"
+                    material="metalness: 0.85; roughness: 0.25; shader: standard"></a-cylinder>
+        <!-- loop where chain meets badge -->
+        <a-torus radius="0.012" radius-tubular="0.0022"
+                 position="0 -0.125 0"
+                 rotation="90 0 0"
+                 color="#dddddd"
+                 material="metalness: 0.85; roughness: 0.25"></a-torus>
+        <!-- the rank badge GLB (bigger + self-illuminated so it reads clearly) -->
         <a-gltf-model id="rank-badge"
                       src="./models/ranks/immortal.glb"
-                      position="0 -0.17 0"
-                      scale="3 3 3"></a-gltf-model>
+                      position="0 -0.22 0"
+                      scale="6 6 6"
+                      boost-pbr="emissive: #6A2EAE; emissiveIntensity: 0.55"></a-gltf-model>
       </a-entity>
     </a-entity>
   </a-entity>
