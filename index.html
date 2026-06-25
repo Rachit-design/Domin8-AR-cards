@@ -285,27 +285,23 @@
              width="1.05" height="1.30"
              video-blend="feather: 0.28"></a-video>
 
-    <!-- HANGING RANK BADGE — anchored at the visible top-right hole.
-         hang-down keeps the chain pointing to world-down (gravity). -->
+    <!-- HANGING RANK BADGE — bisect test: hang-down + boost-pbr DISABLED.
+         Adding side-by-side debug cube to pinpoint failure. -->
     <a-entity id="badge-anchor" position="0.33 0.48 0.012">
-      <a-entity hang-down="smoothness: 0.18">
+      <a-entity>
         <!-- chain -->
-        <a-cylinder height="0.12" radius="0.0018"
+        <a-cylinder height="0.12" radius="0.003"
                     position="0 -0.06 0"
-                    color="#dddddd"
-                    material="metalness: 0.85; roughness: 0.25; shader: standard"></a-cylinder>
-        <!-- loop where chain meets badge -->
-        <a-torus radius="0.012" radius-tubular="0.0022"
-                 position="0 -0.125 0"
-                 rotation="90 0 0"
-                 color="#dddddd"
-                 material="metalness: 0.85; roughness: 0.25"></a-torus>
-        <!-- the rank badge GLB (bigger + self-illuminated so it reads clearly) -->
+                    color="#ffffff"
+                    material="shader: flat"></a-cylinder>
+        <!-- yellow debug cube right next to where the GLB should be -->
+        <a-box position="-0.06 -0.22 0" scale="0.05 0.05 0.05"
+               color="#FFFF00" material="shader: flat"></a-box>
+        <!-- the rank badge GLB (no boost-pbr; default materials) -->
         <a-gltf-model id="rank-badge"
                       src="./models/ranks/immortal.glb"
                       position="0 -0.22 0"
-                      scale="6 6 6"
-                      boost-pbr="emissive: #6A2EAE; emissiveIntensity: 0.55"></a-gltf-model>
+                      scale="6 6 6"></a-gltf-model>
       </a-entity>
     </a-entity>
   </a-entity>
