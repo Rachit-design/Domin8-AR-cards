@@ -2,6 +2,9 @@
   "_comment": "Edit this, then run: python3 scripts/generate.py",
   "_baseUrl": "https://rachit-design.github.io/Domin8-AR-cards/",
   "players": [
-    { "key": "mamanotjoe", "name": "MAMANOTJOE", "video": "mamanotjoe.mp4" }
+    { "key": "mamanotjoe",   "name": "MAMANOTJOE",    "video": "mamanotjoe.mp4",   "rank": "immortal" },
+    { "key": "highspeed",    "name": "HIGHSPEED",     "video": "highspeed.mp4",    "rank": "diamond"  },
+    { "key": "messiop",      "name": "MesssiOP",      "video": "messiop.mp4",      "rank": "platinum" },
+    { "key": "pookiepiggie", "name": "PooKiePiGGiE",  "video": "pookiepiggie.mp4", "rank": "diamond"  }
   ]
 }
