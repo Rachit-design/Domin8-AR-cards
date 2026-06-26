@@ -144,25 +144,36 @@
         roughness: { default: 0.55 }
       },
       init: function () {
-        const self = this;
-        this.el.addEventListener('model-loaded', () => {
-          const root = self.el.getObject3D('mesh');
-          if (!root) return;
-          root.traverse((n) => {
-            if (n.isMesh && n.material) {
-              const mats = Array.isArray(n.material) ? n.material : [n.material];
-              mats.forEach((m) => {
-                if ('emissive' in m) {
-                  m.emissive = new THREE.Color(self.data.emissive);
-                  m.emissiveIntensity = self.data.emissiveIntensity;
-                }
-                if ('metalness' in m) m.metalness = self.data.metalness;
-                if ('roughness' in m) m.roughness = self.data.roughness;
-                m.side = THREE.DoubleSide;  // safety: render both faces so flips don't hide the badge
-                m.needsUpdate = true;
-              });
-            }
-          });
+        this.apply = this.apply.bind(this);
+        this.el.addEventListener('model-loaded', this.apply);
+        // Also try immediately in case the model was already loaded before we attached
+        this.apply();
+        // And again after a few frames in case the GLB streams in late
+        setTimeout(this.apply, 200);
+        setTimeout(this.apply, 800);
+      },
+      update: function () {
+        // Re-apply when schema values change (e.g. JS sets a new rank tint)
+        this.apply();
+      },
+      apply: function () {
+        const root = this.el.getObject3D('mesh');
+        if (!root) return;
+        const d = this.data;
+        root.traverse((n) => {
+          if (n.isMesh && n.material) {
+            const mats = Array.isArray(n.material) ? n.material : [n.material];
+            mats.forEach((m) => {
+              if ('emissive' in m) {
+                m.emissive = new THREE.Color(d.emissive);
+                m.emissiveIntensity = d.emissiveIntensity;
+              }
+              if ('metalness' in m) m.metalness = d.metalness;
+              if ('roughness' in m) m.roughness = d.roughness;
+              m.side = THREE.DoubleSide;
+              m.needsUpdate = true;
+            });
+          }
         });
       }
     });
