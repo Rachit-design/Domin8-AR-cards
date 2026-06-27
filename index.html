@@ -162,15 +162,22 @@
         const d = this.data;
         const tintColor = new THREE.Color(d.emissive);
         root.traverse((n) => {
-          if (n.isMesh) {
-            // Replace material with an unlit MeshBasicMaterial in the rank tint.
-            // This guarantees the badge reads as a glowing colored shape regardless
-            // of lighting / metallic textures that previously rendered it as silver.
-            n.material = new THREE.MeshBasicMaterial({
-              color: tintColor,
+          if (n.isMesh && n.material) {
+            const orig = n.material;
+            // Preserve the original diffuse texture so the badge's actual art shows,
+            // but render it UNLIT (no PBR / no metallic mirror weirdness) and
+            // apply a subtle tint multiply so the rank color reads through.
+            const newMat = new THREE.MeshBasicMaterial({
+              color: orig.map ? 0xffffff : tintColor.getHex(),
+              map: orig.map || null,
               side: THREE.DoubleSide,
-              toneMapped: false  // keeps the color punchy even with HDR tone mapping
+              toneMapped: false,
+              transparent: !!orig.transparent,
+              opacity: orig.opacity != null ? orig.opacity : 1
             });
+            // dispose of the heavy PBR material to free GPU memory
+            try { orig.dispose && orig.dispose(); } catch(e){}
+            n.material = newMat;
           }
         });
       }
@@ -439,53 +446,53 @@
              width="1.05" height="1.30"
              video-blend="feather: 0.28"></a-video>
 
-    <!-- HANGING RANK BADGE — simplified to direct children of target.
-         No hang-down nesting, no debug sphere. Forward Z so nothing occludes it. -->
+    <!-- HANGING RANK BADGE — direct children, top-right corner of card -->
     <!-- chain — straight down from the hole -->
-    <a-cylinder height="0.10" radius="0.005"
-                position="0.30 0.42 0.060"
+    <a-cylinder height="0.08" radius="0.004"
+                position="0.30 0.40 0.060"
                 color="#dddddd"
                 material="shader: flat"></a-cylinder>
     <!-- loop where chain meets badge -->
     <a-torus radius="0.012" radius-tubular="0.003"
-             position="0.30 0.36 0.060"
+             position="0.30 0.35 0.060"
              rotation="90 0 0"
              color="#dddddd"
              material="shader: flat"></a-torus>
 
-    <!-- rank badge GLB — direct child of target. BIG scale, well-forward Z, no nesting. -->
+    <!-- rank badge GLB — sized to look proportional next to the chain. -->
     <a-gltf-model id="rank-badge"
                   src="./models/ranks/immortal.glb"
-                  position="0.30 0.22 0.060"
-                  scale="12 12 12"
+                  position="0.30 0.27 0.060"
+                  scale="3.5 3.5 3.5"
                   tame-pbr="emissive: #B6324B; emissiveIntensity: 1.0; metalness: 0.10; roughness: 0.5"></a-gltf-model>
 
-    <!-- AR STATS PANEL — billboarded below the card, clickable, opens iesports profile. -->
-    <a-entity id="ar-panel" position="0 -0.70 0.060" billboard-smooth="speed: 0.18">
+    <!-- AR STATS PANEL — billboard, clickable, pulled CLOSER to the card edge so
+         it stays visible on a phone screen even when the card fills most of the view. -->
+    <a-entity id="ar-panel" position="0 -0.62 0.080" billboard-smooth="speed: 0.20">
       <!-- pink border accent -->
-      <a-plane width="0.96" height="0.46" position="0 0 -0.001"
-               material="shader: flat; color: #EF438B; side: double; opacity: 0.45; transparent: true"></a-plane>
-      <!-- panel background — this is the clickable surface -->
-      <a-plane class="ar-clickable" width="0.92" height="0.42" position="0 0 0"
-               material="shader: flat; color: #121218; side: double; opacity: 0.94; transparent: true"></a-plane>
+      <a-plane width="0.78" height="0.36" position="0 0 -0.002"
+               color="#EF438B"
+               material="shader: flat; side: double"></a-plane>
+      <!-- panel background — the clickable surface -->
+      <a-plane class="ar-clickable" width="0.74" height="0.32" position="0 0 0"
+               color="#0E0E14"
+               material="shader: flat; side: double"></a-plane>
       <!-- title -->
-      <a-text value="PERFORMANCE BREAKDOWN" position="0 0.165 0.002"
-              align="center" color="#EF438B" width="1.0"></a-text>
+      <a-text value="PERFORMANCE BREAKDOWN" position="0 0.12 0.002"
+              align="center" color="#EF438B" width="1.2" wrap-count="22"></a-text>
       <!-- stat row 1 values -->
-      <a-text value="—       —       —" position="0 0.075 0.002"
-              align="center" color="#FFFFFF" width="0.85"></a-text>
-      <!-- stat row 1 labels -->
-      <a-text value="KILLS   DEATHS   ASSISTS" position="0 0.025 0.002"
-              align="center" color="#888888" width="0.65"></a-text>
+      <a-text value="-     -     -" position="0 0.045 0.002"
+              align="center" color="#FFFFFF" width="1.0" wrap-count="20"></a-text>
+      <a-text value="KILLS  DEATHS  ASSISTS" position="0 0.005 0.002"
+              align="center" color="#888888" width="0.85" wrap-count="26"></a-text>
       <!-- stat row 2 values -->
-      <a-text value="—       —       —" position="0 -0.055 0.002"
-              align="center" color="#FFFFFF" width="0.85"></a-text>
-      <!-- stat row 2 labels -->
-      <a-text value="K/D       HS%        ACS" position="0 -0.105 0.002"
-              align="center" color="#888888" width="0.6"></a-text>
+      <a-text value="-     -     -" position="0 -0.05 0.002"
+              align="center" color="#FFFFFF" width="1.0" wrap-count="20"></a-text>
+      <a-text value="K/D    HS%    ACS" position="0 -0.09 0.002"
+              align="center" color="#888888" width="0.75" wrap-count="22"></a-text>
       <!-- tap hint -->
-      <a-text value="TAP TO VIEW FULL PROFILE" position="0 -0.18 0.002"
-              align="center" color="#EF438B" width="0.95"></a-text>
+      <a-text value="TAP TO VIEW FULL PROFILE" position="0 -0.14 0.002"
+              align="center" color="#EF438B" width="1.0" wrap-count="26"></a-text>
     </a-entity>
   </a-entity>
 
