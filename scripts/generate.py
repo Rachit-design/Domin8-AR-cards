@@ -23,10 +23,12 @@ def update_index(players):
     lines = ["  const PLAYERS = {"]
     for i, p in enumerate(players):
         rank = p.get("rank", "")
+        profile = p.get("profile", "")
         rank_field = f', rank: "{rank}"' if rank else ""
+        profile_field = f', profile: "{profile}"' if profile else ""
         lines.append(
             f'    "{p["key"]}": {{ targetIndex: {i}, video: "./videos/{p["video"]}",'
-            f' name: "{p["name"]}"{rank_field} }},'
+            f' name: "{p["name"]}"{rank_field}{profile_field} }},'
         )
     lines.append("  };")
     new_block = "\n".join(lines)
