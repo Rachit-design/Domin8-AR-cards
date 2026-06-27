@@ -261,6 +261,23 @@
     }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
 
+    /* VIGNETTE — dims everything OUTSIDE the card area so the video pops.
+       Lives above the AR canvas but below text overlays. pointer-events:none
+       so taps still pass through to AR. Activated on targetFound. */
+    #vignette {
+      position: fixed; inset: 0; z-index: 30;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 55% 70% at center,
+          rgba(0,0,0,0) 0%,
+          rgba(0,0,0,0) 35%,
+          rgba(0,0,0,0.55) 75%,
+          rgba(0,0,0,0.85) 100%);
+      opacity: 0;
+      transition: opacity 0.45s ease;
+    }
+    #vignette.visible { opacity: 1; }
+
     /* iESPORTS profile link — appears when a player is detected */
     #iesports-link {
       position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
@@ -314,6 +331,11 @@
 
 <!-- Background music element. WebAudio chain hooks into this for bass boost. -->
 <audio id="bgm" src="./audio/background.mp3" loop preload="auto"></audio>
+<!-- One-shot scan SFX, played each time a target is found. -->
+<audio id="sfx-scan" src="./audio/scan.mp3" preload="auto"></audio>
+
+<!-- VIGNETTE — fades in on scan so the surroundings darken and the card pops. -->
+<div id="vignette"></div>
 
 <!-- iESPORTS LINK — bottom of screen, appears when player detected.
      Tap → opens the player's profile on iesports.in. -->
@@ -525,11 +547,17 @@
       const target = document.querySelector("[mindar-image-target]");
       const video = document.getElementById("cardVideo");
       const ieLinkEl = document.getElementById("iesports-link");
+      const vignetteEl = document.getElementById("vignette");
+      const scanSfx = document.getElementById("sfx-scan");
+      scanSfx.volume = 0.8;
       startBgm();  // try to start as soon as scene is ready (post-camera-grant)
       target.addEventListener("targetFound", () => {
         hint.style.display = "none";
         video.play().catch(() => {});
         boostBgm();
+        vignetteEl.classList.add("visible");
+        // Restart sfx from the top each time card is found
+        try { scanSfx.currentTime = 0; scanSfx.play(); } catch (e) {}
         if (ieLinkEl.href && ieLinkEl.href !== window.location.href + "#") {
           ieLinkEl.classList.add("visible");
         }
@@ -538,6 +566,7 @@
         hint.style.display = "block";
         video.pause();
         fadeBgm();
+        vignetteEl.classList.remove("visible");
         ieLinkEl.classList.remove("visible");
       });
     });
