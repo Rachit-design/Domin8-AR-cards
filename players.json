@@ -5,6 +5,8 @@
     { "key": "mamanotjoe",   "name": "MAMANOTJOE",    "video": "mamanotjoe.mp4",   "rank": "immortal", "profile": "" },
     { "key": "highspeed",    "name": "HIGHSPEED",     "video": "highspeed.mp4",    "rank": "diamond",  "profile": "" },
     { "key": "messiop",      "name": "MesssiOP",      "video": "messiop.mp4",      "rank": "platinum", "profile": "" },
-    { "key": "pookiepiggie", "name": "PooKiePiGGiE",  "video": "pookiepiggie.mp4", "rank": "diamond",  "profile": "" }
+    { "key": "pookiepiggie", "name": "PooKiePiGGiE",  "video": "pookiepiggie.mp4", "rank": "diamond",  "profile": "" },
+    { "key": "bhavya",       "name": "BHAVYA",        "video": "bhavya.mp4",       "rank": "",         "profile": "" },
+    { "key": "krishop",      "name": "krishOP",       "video": "krishop.mp4",      "rank": "",         "profile": "" }
   ]
 }
