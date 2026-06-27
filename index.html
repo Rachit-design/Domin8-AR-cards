@@ -379,8 +379,8 @@
 <!-- VIGNETTE — fades in on scan so the surroundings darken and the card pops. -->
 <div id="vignette"></div>
 
-<!-- STATS PANEL — placeholder UI, clickable: opens the player's iesports profile. -->
-<a id="stats-panel" href="#" target="_blank" rel="noopener">
+<!-- STATS PANEL — DOM version, hidden; replaced by AR-anchored panel inside the scene. -->
+<a id="stats-panel" href="#" target="_blank" rel="noopener" style="display:none;">
   <div class="stats-title">Performance Breakdown</div>
   <div class="stats-grid">
     <div class="stat-card"><div class="stat-value" id="stat-kills">—</div><div class="stat-label">Kills</div></div>
@@ -393,9 +393,8 @@
   <div class="stats-note">Tap to view full profile on iesports.in</div>
 </a>
 
-<!-- iESPORTS LINK — bottom of screen, appears when player detected.
-     Tap → opens the player's profile on iesports.in. -->
-<a id="iesports-link" href="#" target="_blank" rel="noopener" style="display:none;">
+<!-- iESPORTS LINK — DOM version, hidden; replaced by AR-anchored panel. -->
+<a id="iesports-link" href="#" target="_blank" rel="noopener" style="display:none !important;">
   <div class="ie-row">
     <div class="ie-logo">iE</div>
     <div class="ie-meta">
@@ -411,6 +410,8 @@
   mindar-image="imageTargetSrc: ./targets/targets.mind; uiScanning: no; uiLoading: no; uiError: no;"
   color-space="sRGB"
   renderer="colorManagement: true, physicallyCorrectLights"
+  cursor="rayOrigin: mouse"
+  raycaster="objects: .ar-clickable; far: 100"
   vr-mode-ui="enabled: false"
   device-orientation-permission-ui="enabled: false">
 
@@ -438,38 +439,53 @@
              width="1.05" height="1.30"
              video-blend="feather: 0.28"></a-video>
 
-    <!-- HANGING RANK BADGE — anchored at top-right corner of the card.
-         The badge-anchor sits at the hole, the chain hangs down, the badge
-         dangles below. hang-down keeps the chain pointing to world-down
-         (gravity) regardless of card tilt. -->
-    <a-entity id="badge-anchor" position="0.34 0.48 0.030">
-      <a-entity hang-down="smoothness: 0.18">
-        <!-- chain — unlit white so it's visible regardless of lighting -->
-        <a-cylinder height="0.10" radius="0.004"
-                    position="0 -0.05 0"
-                    color="#ffffff"
-                    material="shader: flat"></a-cylinder>
-        <!-- DEBUG SPHERE — bright magenta unlit, sits beside the GLB.
-             If you see this sphere but no badge model: GLB material problem.
-             If you don't see this either: entity hierarchy / hang-down problem. -->
-        <a-sphere radius="0.035"
-                  position="-0.05 -0.20 0"
-                  color="#FF00FF"
-                  material="shader: flat"></a-sphere>
-        <!-- loop where chain meets badge -->
-        <a-torus radius="0.010" radius-tubular="0.0024"
-                 position="0 -0.105 0"
-                 rotation="90 0 0"
-                 color="#dddddd"
-                 material="metalness: 0.8; roughness: 0.3"></a-torus>
-        <!-- rank badge GLB (rank-tinted emissive set per player below).
-             Bigger scale + higher emissive so it reads clearly against the black card. -->
-        <a-gltf-model id="rank-badge"
-                      src="./models/ranks/immortal.glb"
-                      position="0 -0.20 0"
-                      scale="7 7 7"
-                      tame-pbr="emissive: #7B2BB0; emissiveIntensity: 0.85; metalness: 0.10; roughness: 0.5"></a-gltf-model>
-      </a-entity>
+    <!-- HANGING RANK BADGE — simplified to direct children of target.
+         No hang-down nesting, no debug sphere. Forward Z so nothing occludes it. -->
+    <!-- chain — straight down from the hole -->
+    <a-cylinder height="0.10" radius="0.005"
+                position="0.30 0.42 0.060"
+                color="#dddddd"
+                material="shader: flat"></a-cylinder>
+    <!-- loop where chain meets badge -->
+    <a-torus radius="0.012" radius-tubular="0.003"
+             position="0.30 0.36 0.060"
+             rotation="90 0 0"
+             color="#dddddd"
+             material="shader: flat"></a-torus>
+
+    <!-- rank badge GLB — direct child of target. BIG scale, well-forward Z, no nesting. -->
+    <a-gltf-model id="rank-badge"
+                  src="./models/ranks/immortal.glb"
+                  position="0.30 0.22 0.060"
+                  scale="12 12 12"
+                  tame-pbr="emissive: #B6324B; emissiveIntensity: 1.0; metalness: 0.10; roughness: 0.5"></a-gltf-model>
+
+    <!-- AR STATS PANEL — billboarded below the card, clickable, opens iesports profile. -->
+    <a-entity id="ar-panel" position="0 -0.70 0.060" billboard-smooth="speed: 0.18">
+      <!-- pink border accent -->
+      <a-plane width="0.96" height="0.46" position="0 0 -0.001"
+               material="shader: flat; color: #EF438B; side: double; opacity: 0.45; transparent: true"></a-plane>
+      <!-- panel background — this is the clickable surface -->
+      <a-plane class="ar-clickable" width="0.92" height="0.42" position="0 0 0"
+               material="shader: flat; color: #121218; side: double; opacity: 0.94; transparent: true"></a-plane>
+      <!-- title -->
+      <a-text value="PERFORMANCE BREAKDOWN" position="0 0.165 0.002"
+              align="center" color="#EF438B" width="1.0"></a-text>
+      <!-- stat row 1 values -->
+      <a-text value="—       —       —" position="0 0.075 0.002"
+              align="center" color="#FFFFFF" width="0.85"></a-text>
+      <!-- stat row 1 labels -->
+      <a-text value="KILLS   DEATHS   ASSISTS" position="0 0.025 0.002"
+              align="center" color="#888888" width="0.65"></a-text>
+      <!-- stat row 2 values -->
+      <a-text value="—       —       —" position="0 -0.055 0.002"
+              align="center" color="#FFFFFF" width="0.85"></a-text>
+      <!-- stat row 2 labels -->
+      <a-text value="K/D       HS%        ACS" position="0 -0.105 0.002"
+              align="center" color="#888888" width="0.6"></a-text>
+      <!-- tap hint -->
+      <a-text value="TAP TO VIEW FULL PROFILE" position="0 -0.18 0.002"
+              align="center" color="#EF438B" width="0.95"></a-text>
     </a-entity>
   </a-entity>
 
@@ -621,21 +637,23 @@
         video.play().catch(() => {});
         boostBgm();
         vignetteEl.classList.add("visible");
-        statsPanel.classList.add("visible");
         // Restart sfx from the top each time card is found
         try { scanSfx.currentTime = 0; scanSfx.play(); } catch (e) {}
-        if (ieLinkEl.href && ieLinkEl.href !== window.location.href + "#") {
-          ieLinkEl.classList.add("visible");
-        }
       });
       target.addEventListener("targetLost", () => {
         hint.style.display = "block";
         video.pause();
         fadeBgm();
         vignetteEl.classList.remove("visible");
-        statsPanel.classList.remove("visible");
-        ieLinkEl.classList.remove("visible");
       });
+
+      // AR panel click → open the player's iesports profile in a new tab
+      const arClickable = scene.querySelector(".ar-clickable");
+      if (arClickable) {
+        arClickable.addEventListener("click", () => {
+          if (player.profile) window.open(player.profile, "_blank", "noopener");
+        });
+      }
     });
   }
 </script>
