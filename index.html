@@ -261,18 +261,18 @@
     }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
 
-    /* VIGNETTE — dims everything OUTSIDE the card area so the video pops.
-       Subtle drop-off — atmospheric, not overpowering. */
+    /* VIGNETTE — circular soft dim. Sized in vmin so it scales with the
+       short edge of the viewport (phone width in portrait). */
     #vignette {
       position: fixed; inset: 0; z-index: 30;
       pointer-events: none;
       background:
-        radial-gradient(ellipse 65% 80% at center,
+        radial-gradient(circle 50vmin at center,
           rgba(0,0,0,0) 0%,
-          rgba(0,0,0,0) 45%,
-          rgba(0,0,0,0.20) 65%,
-          rgba(0,0,0,0.45) 85%,
-          rgba(0,0,0,0.65) 100%);
+          rgba(0,0,0,0) 55%,
+          rgba(0,0,0,0.20) 75%,
+          rgba(0,0,0,0.45) 92%,
+          rgba(0,0,0,0.62) 100%);
       opacity: 0;
       transition: opacity 0.5s ease;
     }
@@ -284,12 +284,14 @@
       position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(8px);
       width: min(88vw, 360px); padding: 14px 16px 12px;
       background: rgba(18, 18, 26, 0.92); color: #fff;
+      text-decoration: none; display: block;  /* it's an <a> tag */
       border-radius: 18px; border: 1px solid rgba(239,67,139,0.35);
       backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
       box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 24px rgba(239,67,139,0.12);
       z-index: 60; opacity: 0; pointer-events: none;
       transition: opacity 0.35s ease, transform 0.35s ease;
     }
+    #stats-panel:active { transform: translateX(-50%) translateY(0) scale(0.98); }
     #stats-panel.visible {
       opacity: 1; pointer-events: auto;
       transform: translateX(-50%) translateY(0);
@@ -377,9 +379,8 @@
 <!-- VIGNETTE — fades in on scan so the surroundings darken and the card pops. -->
 <div id="vignette"></div>
 
-<!-- STATS PANEL — placeholder UI showing the structure. Numbers stay as "—"
-     until iesports.in exposes the data. -->
-<div id="stats-panel">
+<!-- STATS PANEL — placeholder UI, clickable: opens the player's iesports profile. -->
+<a id="stats-panel" href="#" target="_blank" rel="noopener">
   <div class="stats-title">Performance Breakdown</div>
   <div class="stats-grid">
     <div class="stat-card"><div class="stat-value" id="stat-kills">—</div><div class="stat-label">Kills</div></div>
@@ -389,8 +390,8 @@
     <div class="stat-card"><div class="stat-value" id="stat-hs">—</div><div class="stat-label">HS%</div></div>
     <div class="stat-card"><div class="stat-value" id="stat-acs">—</div><div class="stat-label">ACS</div></div>
   </div>
-  <div class="stats-note">Live stats coming soon</div>
-</div>
+  <div class="stats-note">Tap to view full profile on iesports.in</div>
+</a>
 
 <!-- iESPORTS LINK — bottom of screen, appears when player detected.
      Tap → opens the player's profile on iesports.in. -->
@@ -544,6 +545,7 @@
     ieName.textContent = player.name + (rankDisplay ? "  ·  " + rankDisplay : "");
     if (player.profile) {
       ieLink.href = player.profile;
+      document.getElementById("stats-panel").href = player.profile;
     }
     scene.style.display = "block";
 
