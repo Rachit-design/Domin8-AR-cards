@@ -160,18 +160,16 @@
         const root = this.el.getObject3D('mesh');
         if (!root) return;
         const d = this.data;
+        const tintColor = new THREE.Color(d.emissive);
         root.traverse((n) => {
-          if (n.isMesh && n.material) {
-            const mats = Array.isArray(n.material) ? n.material : [n.material];
-            mats.forEach((m) => {
-              if ('emissive' in m) {
-                m.emissive = new THREE.Color(d.emissive);
-                m.emissiveIntensity = d.emissiveIntensity;
-              }
-              if ('metalness' in m) m.metalness = d.metalness;
-              if ('roughness' in m) m.roughness = d.roughness;
-              m.side = THREE.DoubleSide;
-              m.needsUpdate = true;
+          if (n.isMesh) {
+            // Replace material with an unlit MeshBasicMaterial in the rank tint.
+            // This guarantees the badge reads as a glowing colored shape regardless
+            // of lighting / metallic textures that previously rendered it as silver.
+            n.material = new THREE.MeshBasicMaterial({
+              color: tintColor,
+              side: THREE.DoubleSide,
+              toneMapped: false  // keeps the color punchy even with HDR tone mapping
             });
           }
         });
@@ -314,6 +312,9 @@
 
 <div id="scan-hint">Point your camera at the card front</div>
 
+<!-- Background music element. WebAudio chain hooks into this for bass boost. -->
+<audio id="bgm" src="./audio/background.mp3" loop preload="auto"></audio>
+
 <!-- iESPORTS LINK — bottom of screen, appears when player detected.
      Tap → opens the player's profile on iesports.in. -->
 <a id="iesports-link" href="#" target="_blank" rel="noopener" style="display:none;">
@@ -346,16 +347,16 @@
   <a-entity mindar-image-target="targetIndex: 0">
 
     <!-- BLACK CARD — hides the printed card art behind it so the whole card
-         reads as a single video display. Sized to overshoot the card edges. -->
-    <a-plane position="0 0 0.001"
-             width="0.78" height="1.04"
-             color="#000000"
-             material="shader: flat"></a-plane>
+         reads as a single video display. Sized to overshoot the card edges.
+         side: double + bigger Z gap to bulletproof against culling/Z-fighting. -->
+    <a-plane position="0 0 0.005"
+             width="0.88" height="1.12"
+             material="shader: flat; color: #000000; side: double"></a-plane>
 
     <!-- MAIN VIDEO — large plane so the SOLID area covers the entire card.
          feather controls how far in from each edge the fade starts. -->
     <a-video src="#cardVideo"
-             position="0 0.05 0.002"
+             position="0 0.05 0.012"
              width="1.05" height="1.30"
              video-blend="feather: 0.28"></a-video>
 
@@ -363,7 +364,7 @@
          The badge-anchor sits at the hole, the chain hangs down, the badge
          dangles below. hang-down keeps the chain pointing to world-down
          (gravity) regardless of card tilt. -->
-    <a-entity id="badge-anchor" position="0.34 0.48 0.018">
+    <a-entity id="badge-anchor" position="0.34 0.48 0.030">
       <a-entity hang-down="smoothness: 0.18">
         <!-- chain -->
         <a-cylinder height="0.10" radius="0.0025"
@@ -462,14 +463,63 @@
     }
     scene.style.display = "block";
 
+    // ----- Background music with bass-boost on detection -----
+    let bgmCtx = null, bgmGain = null, bgmBass = null;
+    const bgmEl = document.getElementById("bgm");
+    const VOL_IDLE = 0.18, VOL_LOUD = 0.85;
+    const BASS_IDLE = 0,    BASS_LOUD = 9;   // dB
+
+    function ensureBgmGraph() {
+      if (bgmCtx) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      bgmCtx = new AC();
+      const src = bgmCtx.createMediaElementSource(bgmEl);
+      bgmBass = bgmCtx.createBiquadFilter();
+      bgmBass.type = "lowshelf";
+      bgmBass.frequency.value = 200;
+      bgmBass.gain.value = BASS_IDLE;
+      bgmGain = bgmCtx.createGain();
+      bgmGain.gain.value = VOL_IDLE;
+      src.connect(bgmBass).connect(bgmGain).connect(bgmCtx.destination);
+    }
+    function startBgm() {
+      ensureBgmGraph();
+      if (bgmCtx && bgmCtx.state === "suspended") bgmCtx.resume().catch(() => {});
+      bgmEl.play().catch(() => {});
+    }
+    function boostBgm() {
+      if (!bgmGain) return;
+      const now = bgmCtx.currentTime;
+      bgmGain.gain.cancelScheduledValues(now);
+      bgmGain.gain.setTargetAtTime(VOL_LOUD, now, 0.4);
+      bgmBass.gain.cancelScheduledValues(now);
+      bgmBass.gain.setTargetAtTime(BASS_LOUD, now, 0.4);
+    }
+    function fadeBgm() {
+      if (!bgmGain) return;
+      const now = bgmCtx.currentTime;
+      bgmGain.gain.cancelScheduledValues(now);
+      bgmGain.gain.setTargetAtTime(VOL_IDLE, now, 0.6);
+      bgmBass.gain.cancelScheduledValues(now);
+      bgmBass.gain.setTargetAtTime(BASS_IDLE, now, 0.6);
+    }
+    // Browser autoplay rules require a user gesture. Mind-ar's permission prompt
+    // is gesture-initiated, but to be safe we also try on first touch/click.
+    ["click", "touchstart", "keydown"].forEach(ev =>
+      window.addEventListener(ev, startBgm, { once: true })
+    );
+
     scene.addEventListener("loaded", () => {
       hint.style.display = "block";
       const target = document.querySelector("[mindar-image-target]");
       const video = document.getElementById("cardVideo");
       const ieLinkEl = document.getElementById("iesports-link");
+      startBgm();  // try to start as soon as scene is ready (post-camera-grant)
       target.addEventListener("targetFound", () => {
         hint.style.display = "none";
         video.play().catch(() => {});
+        boostBgm();
         if (ieLinkEl.href && ieLinkEl.href !== window.location.href + "#") {
           ieLinkEl.classList.add("visible");
         }
@@ -477,6 +527,7 @@
       target.addEventListener("targetLost", () => {
         hint.style.display = "block";
         video.pause();
+        fadeBgm();
         ieLinkEl.classList.remove("visible");
       });
     });
