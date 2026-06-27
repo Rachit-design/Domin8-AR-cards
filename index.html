@@ -262,19 +262,19 @@
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
 
     /* VIGNETTE — dims everything OUTSIDE the card area so the video pops.
-       Lives above the AR canvas but below text overlays. pointer-events:none
-       so taps still pass through to AR. Activated on targetFound. */
+       Stronger drop-off so the contrast actually reads. */
     #vignette {
       position: fixed; inset: 0; z-index: 30;
       pointer-events: none;
       background:
-        radial-gradient(ellipse 55% 70% at center,
+        radial-gradient(ellipse 50% 65% at center,
           rgba(0,0,0,0) 0%,
-          rgba(0,0,0,0) 35%,
-          rgba(0,0,0,0.55) 75%,
-          rgba(0,0,0,0.85) 100%);
+          rgba(0,0,0,0) 30%,
+          rgba(0,0,0,0.55) 55%,
+          rgba(0,0,0,0.88) 80%,
+          rgba(0,0,0,0.97) 100%);
       opacity: 0;
-      transition: opacity 0.45s ease;
+      transition: opacity 0.5s ease;
     }
     #vignette.visible { opacity: 1; }
 
@@ -489,9 +489,9 @@
     let bgmCtx = null, bgmGain = null, bgmBass = null, bgmLowpass = null;
     const bgmEl = document.getElementById("bgm");
     // Wider contrast: idle is barely-there ambient; detected is full and bassy.
-    const VOL_IDLE = 0.05, VOL_LOUD = 0.90;
-    const BASS_IDLE = -6,  BASS_LOUD = 10;   // dB on lowshelf
-    const LP_IDLE = 1200,  LP_LOUD = 18000;  // Hz lowpass cutoff (lower = more muffled)
+    const VOL_IDLE = 0.015, VOL_LOUD = 0.95;
+    const BASS_IDLE = -10,  BASS_LOUD = 11;   // dB on lowshelf
+    const LP_IDLE = 700,    LP_LOUD = 18000;  // Hz lowpass cutoff (lower = more muffled)
 
     function ensureBgmGraph() {
       if (bgmCtx) return;
