@@ -2,11 +2,11 @@
   "_comment": "Edit this, then run: python3 scripts/generate.py",
   "_baseUrl": "https://rachit-design.github.io/Domin8-AR-cards/",
   "players": [
-    { "key": "mamanotjoe",   "name": "MAMANOTJOE",    "video": "mamanotjoe.mp4",   "rank": "immortal", "profile": "" },
-    { "key": "highspeed",    "name": "HIGHSPEED",     "video": "highspeed.mp4",    "rank": "diamond",  "profile": "" },
-    { "key": "messiop",      "name": "MesssiOP",      "video": "messiop.mp4",      "rank": "platinum", "profile": "" },
-    { "key": "pookiepiggie", "name": "PooKiePiGGiE",  "video": "pookiepiggie.mp4", "rank": "diamond",  "profile": "" },
-    { "key": "bhavya",       "name": "BHAVYA",        "video": "bhavya.mp4",       "rank": "",         "profile": "" },
-    { "key": "krishop",      "name": "krishOP",       "video": "krishop.mp4",      "rank": "",         "profile": "" }
+    { "key": "mamanotjoe",   "name": "MAMANOTJOE",    "video": "mamanotjoe.mp4",   "rank": "immortal",  "tier": 0, "profile": "" },
+    { "key": "highspeed",    "name": "HIGHSPEED",     "video": "highspeed.mp4",    "rank": "diamond",   "tier": 2, "profile": "" },
+    { "key": "messiop",      "name": "MesssiOP",      "video": "messiop.mp4",      "rank": "platinum",  "tier": 2, "profile": "" },
+    { "key": "pookiepiggie", "name": "PooKiePiGGiE",  "video": "pookiepiggie.mp4", "rank": "diamond",   "tier": 2, "profile": "" },
+    { "key": "bhavya",       "name": "BHAVYA",        "video": "bhavya.mp4",       "rank": "immortal",  "tier": 2, "profile": "" },
+    { "key": "krishop",      "name": "krishOP",       "video": "krishop.mp4",      "rank": "ascendant", "tier": 3, "profile": "" }
   ]
 }
