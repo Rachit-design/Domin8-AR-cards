@@ -368,12 +368,12 @@
 
   <a-entity mindar-image-target="targetIndex: 0">
 
-    <!-- BLACK CARD — hides the printed card art behind it so the whole card
-         reads as a single video display. Sized to overshoot the card edges.
-         side: double + bigger Z gap to bulletproof against culling/Z-fighting. -->
-    <a-plane position="0 0 0.005"
-             width="0.88" height="1.12"
-             material="shader: flat; color: #000000; side: double"></a-plane>
+    <!-- BLACK CARD — massively oversized to guarantee full coverage of the card.
+         shader: flat + side: double + explicit opaque material to bulletproof against
+         any tracking jitter, Z-fighting, or face culling. -->
+    <a-plane position="0 0 0.008"
+             width="1.20" height="1.50"
+             material="shader: flat; color: #000000; side: double; transparent: false; opacity: 1"></a-plane>
 
     <!-- MAIN VIDEO — large plane so the SOLID area covers the entire card.
          feather controls how far in from each edge the fade starts. -->
@@ -388,11 +388,18 @@
          (gravity) regardless of card tilt. -->
     <a-entity id="badge-anchor" position="0.34 0.48 0.030">
       <a-entity hang-down="smoothness: 0.18">
-        <!-- chain -->
-        <a-cylinder height="0.10" radius="0.0025"
+        <!-- chain — unlit white so it's visible regardless of lighting -->
+        <a-cylinder height="0.10" radius="0.004"
                     position="0 -0.05 0"
-                    color="#dddddd"
-                    material="metalness: 0.8; roughness: 0.3; shader: standard"></a-cylinder>
+                    color="#ffffff"
+                    material="shader: flat"></a-cylinder>
+        <!-- DEBUG SPHERE — bright magenta unlit, sits beside the GLB.
+             If you see this sphere but no badge model: GLB material problem.
+             If you don't see this either: entity hierarchy / hang-down problem. -->
+        <a-sphere radius="0.035"
+                  position="-0.05 -0.20 0"
+                  color="#FF00FF"
+                  material="shader: flat"></a-sphere>
         <!-- loop where chain meets badge -->
         <a-torus radius="0.010" radius-tubular="0.0024"
                  position="0 -0.105 0"
