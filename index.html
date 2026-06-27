@@ -464,10 +464,12 @@
     scene.style.display = "block";
 
     // ----- Background music with bass-boost on detection -----
-    let bgmCtx = null, bgmGain = null, bgmBass = null;
+    let bgmCtx = null, bgmGain = null, bgmBass = null, bgmLowpass = null;
     const bgmEl = document.getElementById("bgm");
-    const VOL_IDLE = 0.18, VOL_LOUD = 0.85;
-    const BASS_IDLE = 0,    BASS_LOUD = 9;   // dB
+    // Wider contrast: idle is barely-there ambient; detected is full and bassy.
+    const VOL_IDLE = 0.05, VOL_LOUD = 0.90;
+    const BASS_IDLE = -6,  BASS_LOUD = 10;   // dB on lowshelf
+    const LP_IDLE = 1200,  LP_LOUD = 18000;  // Hz lowpass cutoff (lower = more muffled)
 
     function ensureBgmGraph() {
       if (bgmCtx) return;
@@ -479,9 +481,13 @@
       bgmBass.type = "lowshelf";
       bgmBass.frequency.value = 200;
       bgmBass.gain.value = BASS_IDLE;
+      bgmLowpass = bgmCtx.createBiquadFilter();
+      bgmLowpass.type = "lowpass";
+      bgmLowpass.frequency.value = LP_IDLE;   // muffled when idle
+      bgmLowpass.Q.value = 0.5;
       bgmGain = bgmCtx.createGain();
       bgmGain.gain.value = VOL_IDLE;
-      src.connect(bgmBass).connect(bgmGain).connect(bgmCtx.destination);
+      src.connect(bgmBass).connect(bgmLowpass).connect(bgmGain).connect(bgmCtx.destination);
     }
     function startBgm() {
       ensureBgmGraph();
@@ -492,17 +498,21 @@
       if (!bgmGain) return;
       const now = bgmCtx.currentTime;
       bgmGain.gain.cancelScheduledValues(now);
-      bgmGain.gain.setTargetAtTime(VOL_LOUD, now, 0.4);
+      bgmGain.gain.setTargetAtTime(VOL_LOUD, now, 0.35);
       bgmBass.gain.cancelScheduledValues(now);
-      bgmBass.gain.setTargetAtTime(BASS_LOUD, now, 0.4);
+      bgmBass.gain.setTargetAtTime(BASS_LOUD, now, 0.35);
+      bgmLowpass.frequency.cancelScheduledValues(now);
+      bgmLowpass.frequency.setTargetAtTime(LP_LOUD, now, 0.35);
     }
     function fadeBgm() {
       if (!bgmGain) return;
       const now = bgmCtx.currentTime;
       bgmGain.gain.cancelScheduledValues(now);
-      bgmGain.gain.setTargetAtTime(VOL_IDLE, now, 0.6);
+      bgmGain.gain.setTargetAtTime(VOL_IDLE, now, 0.7);
       bgmBass.gain.cancelScheduledValues(now);
-      bgmBass.gain.setTargetAtTime(BASS_IDLE, now, 0.6);
+      bgmBass.gain.setTargetAtTime(BASS_IDLE, now, 0.7);
+      bgmLowpass.frequency.cancelScheduledValues(now);
+      bgmLowpass.frequency.setTargetAtTime(LP_IDLE, now, 0.7);
     }
     // Browser autoplay rules require a user gesture. Mind-ar's permission prompt
     // is gesture-initiated, but to be safe we also try on first touch/click.
