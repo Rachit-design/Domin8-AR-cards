@@ -1,14 +1,13 @@
 {
   "_comment": "Edit this, then run: python3 scripts/generate.py",
   "_baseUrl": "https://rachit-design.github.io/Domin8-AR-cards/",
-  "_iesportsTournament": "https://www.iesports.in/valorant/tournament/league-of-rising-stars-ascension?tab=players",
-  "_iesportsPlayerPattern": "https://www.iesports.in/player/discord_<DISCORD_ID>",
+  "_iesportsPlayerPattern": "https://www.iesports.in/player/discord_<DISCORD_ID>?tab=valorant",
   "players": [
-    { "key": "mamanotjoe",   "name": "MAMANOTJOE",    "video": "mamanotjoe.mp4",   "rank": "immortal",  "tier": 0, "profile": "https://www.iesports.in/valorant/tournament/league-of-rising-stars-ascension?tab=players" },
-    { "key": "highspeed",    "name": "HIGHSPEED",     "video": "highspeed.mp4",    "rank": "diamond",   "tier": 2, "profile": "https://www.iesports.in/valorant/tournament/league-of-rising-stars-ascension?tab=players" },
-    { "key": "messiop",      "name": "MesssiOP",      "video": "messiop.mp4",      "rank": "platinum",  "tier": 2, "profile": "https://www.iesports.in/valorant/tournament/league-of-rising-stars-ascension?tab=players" },
-    { "key": "pookiepiggie", "name": "PooKiePiGGiE",  "video": "pookiepiggie.mp4", "rank": "diamond",   "tier": 2, "profile": "https://www.iesports.in/valorant/tournament/league-of-rising-stars-ascension?tab=players" },
-    { "key": "bhavya",       "name": "BHAVYA",        "video": "bhavya.mp4",       "rank": "immortal",  "tier": 2, "profile": "https://www.iesports.in/valorant/tournament/league-of-rising-stars-ascension?tab=players" },
-    { "key": "krishop",      "name": "krishOP",       "video": "krishop.mp4",      "rank": "ascendant", "tier": 3, "profile": "https://www.iesports.in/valorant/tournament/league-of-rising-stars-ascension?tab=players" }
+    { "key": "mamanotjoe",   "name": "MAMANOTJOE",    "video": "mamanotjoe.mp4",   "rank": "immortal",  "tier": 0, "profile": "https://www.iesports.in/player/discord_819240770049409024?tab=valorant" },
+    { "key": "highspeed",    "name": "HIGHSPEED",     "video": "highspeed.mp4",    "rank": "diamond",   "tier": 2, "profile": "https://www.iesports.in/player/discord_1364667323860127815?tab=valorant" },
+    { "key": "messiop",      "name": "MesssiOP",      "video": "messiop.mp4",      "rank": "platinum",  "tier": 2, "profile": "https://www.iesports.in/player/discord_601320103359021061?tab=valorant" },
+    { "key": "pookiepiggie", "name": "PooKiePiGGiE",  "video": "pookiepiggie.mp4", "rank": "diamond",   "tier": 2, "profile": "https://www.iesports.in/player/discord_825094685873668166?tab=valorant" },
+    { "key": "bhavya",       "name": "BHAVYA",        "video": "bhavya.mp4",       "rank": "immortal",  "tier": 2, "profile": "https://www.iesports.in/player/discord_776534723639115796?tab=valorant" },
+    { "key": "krishop",      "name": "krishOP",       "video": "krishop.mp4",      "rank": "ascendant", "tier": 3, "profile": "https://www.iesports.in/player/discord_1170649429997523045?tab=valorant" }
   ]
 }
