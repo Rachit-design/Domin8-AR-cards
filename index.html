@@ -262,21 +262,61 @@
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
 
     /* VIGNETTE — dims everything OUTSIDE the card area so the video pops.
-       Stronger drop-off so the contrast actually reads. */
+       Subtle drop-off — atmospheric, not overpowering. */
     #vignette {
       position: fixed; inset: 0; z-index: 30;
       pointer-events: none;
       background:
-        radial-gradient(ellipse 50% 65% at center,
+        radial-gradient(ellipse 65% 80% at center,
           rgba(0,0,0,0) 0%,
-          rgba(0,0,0,0) 30%,
-          rgba(0,0,0,0.55) 55%,
-          rgba(0,0,0,0.88) 80%,
-          rgba(0,0,0,0.97) 100%);
+          rgba(0,0,0,0) 45%,
+          rgba(0,0,0,0.20) 65%,
+          rgba(0,0,0,0.45) 85%,
+          rgba(0,0,0,0.65) 100%);
       opacity: 0;
       transition: opacity 0.5s ease;
     }
     #vignette.visible { opacity: 1; }
+
+    /* STATS PANEL — placeholder showing the UI structure. Real numbers
+       will populate from iesports.in once their data is public. */
+    #stats-panel {
+      position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(8px);
+      width: min(88vw, 360px); padding: 14px 16px 12px;
+      background: rgba(18, 18, 26, 0.92); color: #fff;
+      border-radius: 18px; border: 1px solid rgba(239,67,139,0.35);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 24px rgba(239,67,139,0.12);
+      z-index: 60; opacity: 0; pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    #stats-panel.visible {
+      opacity: 1; pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+    .stats-title {
+      font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+      color: #EF438B; font-weight: 700; margin-bottom: 10px; text-align: center;
+    }
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 6px 4px;
+    }
+    .stat-card {
+      text-align: center; padding: 6px 4px;
+      border-radius: 8px; background: rgba(255,255,255,0.03);
+    }
+    .stat-value {
+      color: #fff; font-weight: 800; font-size: 17px; line-height: 1.1;
+    }
+    .stat-label {
+      color: #888; font-size: 9px; letter-spacing: 1.5px; margin-top: 2px;
+      text-transform: uppercase;
+    }
+    .stats-note {
+      font-size: 10px; color: #666; text-align: center; margin-top: 10px;
+      letter-spacing: 1px; text-transform: uppercase;
+    }
 
     /* iESPORTS profile link — appears when a player is detected */
     #iesports-link {
@@ -336,6 +376,21 @@
 
 <!-- VIGNETTE — fades in on scan so the surroundings darken and the card pops. -->
 <div id="vignette"></div>
+
+<!-- STATS PANEL — placeholder UI showing the structure. Numbers stay as "—"
+     until iesports.in exposes the data. -->
+<div id="stats-panel">
+  <div class="stats-title">Performance Breakdown</div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-value" id="stat-kills">—</div><div class="stat-label">Kills</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-deaths">—</div><div class="stat-label">Deaths</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-assists">—</div><div class="stat-label">Assists</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-kd">—</div><div class="stat-label">K/D</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-hs">—</div><div class="stat-label">HS%</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-acs">—</div><div class="stat-label">ACS</div></div>
+  </div>
+  <div class="stats-note">Live stats coming soon</div>
+</div>
 
 <!-- iESPORTS LINK — bottom of screen, appears when player detected.
      Tap → opens the player's profile on iesports.in. -->
@@ -555,6 +610,7 @@
       const video = document.getElementById("cardVideo");
       const ieLinkEl = document.getElementById("iesports-link");
       const vignetteEl = document.getElementById("vignette");
+      const statsPanel = document.getElementById("stats-panel");
       const scanSfx = document.getElementById("sfx-scan");
       scanSfx.volume = 0.8;
       startBgm();  // try to start as soon as scene is ready (post-camera-grant)
@@ -563,6 +619,7 @@
         video.play().catch(() => {});
         boostBgm();
         vignetteEl.classList.add("visible");
+        statsPanel.classList.add("visible");
         // Restart sfx from the top each time card is found
         try { scanSfx.currentTime = 0; scanSfx.play(); } catch (e) {}
         if (ieLinkEl.href && ieLinkEl.href !== window.location.href + "#") {
@@ -574,6 +631,7 @@
         video.pause();
         fadeBgm();
         vignetteEl.classList.remove("visible");
+        statsPanel.classList.remove("visible");
         ieLinkEl.classList.remove("visible");
       });
     });
