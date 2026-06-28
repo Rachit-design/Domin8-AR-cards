@@ -160,24 +160,22 @@
         const root = this.el.getObject3D('mesh');
         if (!root) return;
         const d = this.data;
-        const tintColor = new THREE.Color(d.emissive);
+        const tint = new THREE.Color(d.emissive);
         root.traverse((n) => {
           if (n.isMesh && n.material) {
-            const orig = n.material;
-            // Preserve the original diffuse texture so the badge's actual art shows,
-            // but render it UNLIT (no PBR / no metallic mirror weirdness) and
-            // apply a subtle tint multiply so the rank color reads through.
-            const newMat = new THREE.MeshBasicMaterial({
-              color: orig.map ? 0xffffff : tintColor.getHex(),
-              map: orig.map || null,
-              side: THREE.DoubleSide,
-              toneMapped: false,
-              transparent: !!orig.transparent,
-              opacity: orig.opacity != null ? orig.opacity : 1
-            });
-            // dispose of the heavy PBR material to free GPU memory
-            try { orig.dispose && orig.dispose(); } catch(e){}
-            n.material = newMat;
+            const m = n.material;
+            // KEEP the original material so the badge's texture/vertex colors show.
+            // Just tame the metallic mirror and add a self-illuminating tint so it
+            // reads in any lighting condition.
+            if ('metalness' in m) m.metalness = d.metalness;
+            if ('roughness' in m) m.roughness = d.roughness;
+            if ('emissive' in m) {
+              // If the material has an emissiveMap, leave the color white so the map shows.
+              if (!m.emissiveMap) m.emissive = tint.clone();
+              m.emissiveIntensity = d.emissiveIntensity;
+            }
+            m.side = THREE.DoubleSide;
+            m.needsUpdate = true;
           }
         });
       }
@@ -466,34 +464,28 @@
                   scale="3.5 3.5 3.5"
                   tame-pbr="emissive: #B6324B; emissiveIntensity: 1.0; metalness: 0.10; roughness: 0.5"></a-gltf-model>
 
-    <!-- AR STATS PANEL — billboard, clickable, pulled CLOSER to the card edge so
-         it stays visible on a phone screen even when the card fills most of the view. -->
-    <a-entity id="ar-panel" position="0 -0.62 0.080" billboard-smooth="speed: 0.20">
-      <!-- pink border accent -->
-      <a-plane width="0.78" height="0.36" position="0 0 -0.002"
-               color="#EF438B"
-               material="shader: flat; side: double"></a-plane>
-      <!-- panel background — the clickable surface -->
-      <a-plane class="ar-clickable" width="0.74" height="0.32" position="0 0 0"
-               color="#0E0E14"
-               material="shader: flat; side: double"></a-plane>
-      <!-- title -->
-      <a-text value="PERFORMANCE BREAKDOWN" position="0 0.12 0.002"
-              align="center" color="#EF438B" width="1.2" wrap-count="22"></a-text>
-      <!-- stat row 1 values -->
-      <a-text value="-     -     -" position="0 0.045 0.002"
-              align="center" color="#FFFFFF" width="1.0" wrap-count="20"></a-text>
-      <a-text value="KILLS  DEATHS  ASSISTS" position="0 0.005 0.002"
-              align="center" color="#888888" width="0.85" wrap-count="26"></a-text>
-      <!-- stat row 2 values -->
-      <a-text value="-     -     -" position="0 -0.05 0.002"
-              align="center" color="#FFFFFF" width="1.0" wrap-count="20"></a-text>
-      <a-text value="K/D    HS%    ACS" position="0 -0.09 0.002"
-              align="center" color="#888888" width="0.75" wrap-count="22"></a-text>
-      <!-- tap hint -->
-      <a-text value="TAP TO VIEW FULL PROFILE" position="0 -0.14 0.002"
-              align="center" color="#EF438B" width="1.0" wrap-count="26"></a-text>
-    </a-entity>
+    <!-- AR STATS PANEL — DEBUG VERSION: no billboard, bright pink, no text.
+         If this isn't visible, the issue is z-fighting / depth / position.
+         If visible, we add back billboard + text next. -->
+    <a-plane class="ar-clickable"
+             position="0 -0.62 0.080"
+             width="0.78" height="0.36"
+             color="#EF438B"
+             material="shader: flat; side: double; transparent: false; opacity: 1"></a-plane>
+    <!-- secondary inner debug plane to confirm it's the panel, not the camera feed -->
+    <a-plane position="0 -0.62 0.082"
+             width="0.65" height="0.26"
+             color="#0E0E14"
+             material="shader: flat; side: double; transparent: false; opacity: 1"></a-plane>
+    <a-text value="PERFORMANCE BREAKDOWN"
+            position="0 -0.55 0.085"
+            align="center" color="#FFFFFF" width="1.2" wrap-count="22"></a-text>
+    <a-text value="K/D   HS%   ACS   KILLS   DEATHS"
+            position="0 -0.62 0.085"
+            align="center" color="#999999" width="1.0" wrap-count="32"></a-text>
+    <a-text value="TAP TO VIEW PROFILE"
+            position="0 -0.70 0.085"
+            align="center" color="#EF438B" width="1.0" wrap-count="22"></a-text>
   </a-entity>
 
   <!-- lights at SCENE level (not inside target) so they always exist -->
